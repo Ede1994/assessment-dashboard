@@ -34,6 +34,11 @@ Last updated: 2026-08-04
 
 ## Done
 
+### CT quiz + trainer password (2026-08-04)
+- [x] Seeded trainer password `NRAD2026`
+- [x] Import CT_Fragen / Lösung CT_Fragen into `ctQuestionsEn.ts` + FBP figure asset
+- [x] README: refresh local DB after pull
+
 ### Linux install hardening (2026-08-04)
 - [x] Force single `better-sqlite3@13` via npm overrides (drop nested v12 node-gyp path)
 - [x] `.npmrc`, `.nvmrc`, `engines`, `check:native` / `setup` scripts, README Debian/Ubuntu section, optional Dockerfile
@@ -47,7 +52,7 @@ Last updated: 2026-08-04
 ### Prototype platform (sessions 2026-08-04)
 - [x] Next.js App Router + TypeScript + Tailwind dark medical UI (from interview-prep HTML look)
 - [x] Prisma + SQLite (`better-sqlite3` adapter, Prisma 7)
-- [x] Demo accounts: `student`/`student`, `student2`/`student2`, `trainer`/`trainer` (passwords hashed in DB)
+- [x] Demo accounts: `student`/`student`, `student2`/`student2`, `trainer`/`NRAD2026` (passwords hashed in DB)
 - [x] Student routes: list, filter/search, answer free-text & MC (no solutions leaked)
 - [x] Trainer routes: overview, question bank + solutions, submissions side-by-side
 - [x] Seed English question bank from medical data engineering prep HTML (~16 scenarios + CT/MRI extras)

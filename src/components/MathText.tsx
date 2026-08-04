@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import katex from "katex";
 
-/** Renders text with $...$ and $$...$$ KaTeX segments. */
+/** Renders text with $...$ / $$...$$ KaTeX and optional ![alt](url) images. */
 export function MathText({
   text,
   className = "",
@@ -17,28 +17,30 @@ export function MathText({
     const el = ref.current;
     if (!el) return;
 
-    const parts: Array<{ type: "text" | "math"; value: string; display: boolean }> =
-      [];
-    const regex = /\$\$([\s\S]+?)\$\$|\$([^$\n]+?)\$/g;
+    type Part =
+      | { type: "text"; value: string }
+      | { type: "math"; value: string; display: boolean }
+      | { type: "image"; alt: string; src: string };
+
+    const parts: Part[] = [];
+    const regex = /\$\$([\s\S]+?)\$\$|\$([^$\n]+?)\$|!\[([^\]]*)\]\(([^)\s]+)\)/g;
     let last = 0;
     let match: RegExpExecArray | null;
     while ((match = regex.exec(text)) !== null) {
       if (match.index > last) {
-        parts.push({
-          type: "text",
-          value: text.slice(last, match.index),
-          display: false,
-        });
+        parts.push({ type: "text", value: text.slice(last, match.index) });
       }
       if (match[1] !== undefined) {
         parts.push({ type: "math", value: match[1], display: true });
-      } else {
+      } else if (match[2] !== undefined) {
         parts.push({ type: "math", value: match[2], display: false });
+      } else {
+        parts.push({ type: "image", alt: match[3] ?? "", src: match[4] ?? "" });
       }
       last = match.index + match[0].length;
     }
     if (last < text.length) {
-      parts.push({ type: "text", value: text.slice(last), display: false });
+      parts.push({ type: "text", value: text.slice(last) });
     }
 
     el.innerHTML = "";
@@ -47,6 +49,14 @@ export function MathText({
         const span = document.createElement("span");
         span.textContent = part.value;
         el.appendChild(span);
+      } else if (part.type === "image") {
+        const img = document.createElement("img");
+        img.src = part.src;
+        img.alt = part.alt || "Question figure";
+        img.className =
+          "my-3 max-w-full rounded-lg border border-slate-700 bg-slate-950";
+        img.loading = "lazy";
+        el.appendChild(img);
       } else {
         const span = document.createElement(part.display ? "div" : "span");
         try {
@@ -62,5 +72,7 @@ export function MathText({
     }
   }, [text]);
 
-  return <div ref={ref} className={className} />;
+  return (
+    <div ref={ref} className={`whitespace-pre-wrap break-words ${className}`} />
+  );
 }

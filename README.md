@@ -85,9 +85,33 @@ Passwords are **never** stored in plaintext. Login verifies against bcrypt hashe
 |---------|------------|------------|-------|
 | Student | `student`  | `student`  | Full assigned curriculum |
 | Student | `student2` | `student2` | CT-focused assignment (MRI-heavy tasks omitted) |
-| Trainer | `trainer`  | `trainer`  | Full trainer tools |
+| Trainer | `trainer`  | `NRAD2026` | Full trainer tools |
 
-Demo passwords are short for convenience; **new** registrations and password changes require ≥8 characters.
+Demo student passwords are short for convenience; **new** registrations and password changes require ≥8 characters.
+
+## Updating the local database after a pull
+
+Seed data (questions, solutions, demo users/passwords, assignments) lives in code (`prisma/seed.ts`, `prisma/tutorQuestionsEn.ts`, `prisma/ctQuestionsEn.ts`). Your local SQLite file `prisma/dev.db` is **not** updated by `git pull` alone.
+
+After pulling changes that touch the schema or seed content:
+
+```bash
+git pull
+npm install                 # if package.json / lockfile changed
+npx prisma generate         # if Prisma schema or client changed
+npx prisma db push          # if schema.prisma changed
+npm run db:seed             # reload questions, solutions, and demo accounts
+```
+
+Or in one shot (force-reset schema + seed):
+
+```bash
+npm run db:reset
+```
+
+`npm run db:seed` / `db:reset` **wipe** existing users, submissions, and in-UI question edits, then recreate the demo bank. Export or re-enter custom trainer edits before reseeding if you need to keep them.
+
+If only app code changed (no Prisma/seed edits), you do **not** need to reseed — just `npm install` (when needed) and `npm run dev`.
 
 ## Roles
 
@@ -112,7 +136,7 @@ Trainers open **Assign tasks** (`/trainer/assignments`), pick a student, then se
 
 ## Question bank content
 
-Seeded from the medical interview-prep template plus the Deep Learning in Medical Imaging tutor FAQ (English, near-duplicates skipped). Categories: PyTorch, Python, medical data, AI/DL, DL fundamentals, CT & MRI, DICOM, governance/MDR, U-Net architectures.
+Seeded from the medical interview-prep template plus the Deep Learning in Medical Imaging tutor FAQ (English, near-duplicates skipped), plus an 8-question CT fundamentals quiz (`prisma/ctQuestionsEn.ts`, with FBP figure at `public/seed-assets/ct/fbp-reconstructions.png`). Categories: PyTorch, Python, medical data, AI/DL, DL fundamentals, CT & MRI, DICOM, governance/MDR, U-Net architectures.
 
 ## Useful scripts
 

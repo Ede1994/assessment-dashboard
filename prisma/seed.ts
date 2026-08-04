@@ -3,6 +3,7 @@ import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaClient, QuestionType, Role } from "../src/generated/prisma/client";
 import path from "path";
 import { tutorQuestionsEn } from "./tutorQuestionsEn";
+import { ctQuestionsEn } from "./ctQuestionsEn";
 import { hashPassword } from "../src/lib/password";
 
 const dbUrl = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
@@ -662,12 +663,12 @@ async function main() {
   await prisma.category.deleteMany();
   await prisma.user.deleteMany();
 
-  // Merge tutor curriculum questions into category buckets (skip unknown slugs).
+  // Merge tutor + CT quiz questions into category buckets (skip unknown slugs).
   const bySlug = new Map(categories.map((c) => [c.slug, c]));
-  for (const tq of tutorQuestionsEn) {
+  for (const tq of [...tutorQuestionsEn, ...ctQuestionsEn]) {
     const cat = bySlug.get(tq.categorySlug);
     if (!cat) {
-      console.warn(`Unknown category for tutor question: ${tq.categorySlug}`);
+      console.warn(`Unknown category for imported question: ${tq.categorySlug}`);
       continue;
     }
     cat.questions.push({
@@ -701,7 +702,7 @@ async function main() {
   await prisma.user.create({
     data: {
       username: "trainer",
-      passwordHash: await hashPassword("trainer"),
+      passwordHash: await hashPassword("NRAD2026"),
       role: Role.TRAINER,
       displayName: "Demo Trainer",
     },

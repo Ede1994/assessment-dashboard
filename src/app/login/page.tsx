@@ -44,7 +44,7 @@ export default function LoginPage() {
       setPassword("student");
     } else {
       setUsername("trainer");
-      setPassword("trainer");
+      setPassword("NRAD2026");
     }
   }
 
@@ -135,7 +135,7 @@ export default function LoginPage() {
           <p>
             Seeded demos (hashed):{" "}
             <code className="text-slate-400">student / student</code>,{" "}
-            <code className="text-slate-400">trainer / trainer</code>
+            <code className="text-slate-400">trainer / NRAD2026</code>
           </p>
         </div>
       </div>

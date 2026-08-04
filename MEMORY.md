@@ -38,7 +38,8 @@ Last updated: 2026-08-04
 |------|------|------|----------------|
 | `student` | `student` | STUDENT | All questions assigned (~66) — “full track” |
 | `student2` | `student2` | STUDENT | CT-focused: MRI-heavy titles/tags filtered out (~61) |
-| `trainer` | `trainer` | TRAINER | Full bank, assignments UI, submissions |
+| `trainer` | `NRAD2026` | TRAINER | Full bank, assignments UI, submissions |
+
 
 - Env: `DATABASE_URL=file:./prisma/dev.db`, `SESSION_SECRET=…` (see `.env.example`). SQLite file lives under `prisma/dev.db` (not repo root).
 - Cross-platform: one `better-sqlite3@13` via package `overrides` (no nested v12); Linux prebuilds included. Fallback compilers: `build-essential` + `python3`.
@@ -86,6 +87,12 @@ MRI-heavy filter used for `student2` seed (regex-ish on title/tags/prompt): MRI,
 ---
 
 ## Session log
+
+### 2026-08-04 — Trainer password + CT quiz import
+- Default seeded trainer password is now `NRAD2026` (login demo button + README updated).
+- Imported 8 CT questions/solutions from `CT_Fragen.docx` / `Lösung CT_Fragen.docx` into `prisma/ctQuestionsEn.ts` (ct-mri category); FBP figure at `public/seed-assets/ct/fbp-reconstructions.png`.
+- Multi-correct items stored as FREE_TEXT (student MC UI is single-select). `MathText` now renders `![alt](url)` and preserves newlines.
+- README: “Updating the local database after a pull” (`db:seed` / `db:reset`).
 
 ### 2026-08-04 — Linux / Debian-Ubuntu install compatibility
 - `npm install` failures on Linux were caused by a **nested** `better-sqlite3@12` (from `@prisma/adapter-better-sqlite3`) that runs `prebuild-install || node-gyp rebuild` and needs `build-essential` + Python when prebuilds miss.
