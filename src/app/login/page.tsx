@@ -38,16 +38,6 @@ export default function LoginPage() {
     }
   }
 
-  function fill(role: "student" | "trainer") {
-    if (role === "student") {
-      setUsername("student");
-      setPassword("student");
-    } else {
-      setUsername("trainer");
-      setPassword("NRAD2026");
-    }
-  }
-
   return (
     <main className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden">
       <div className="absolute -top-32 -right-32 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -106,23 +96,6 @@ export default function LoginPage() {
           >
             {loading ? "Signing in…" : "Sign in"}
           </button>
-
-          <div className="grid grid-cols-2 gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => fill("student")}
-              className="text-xs px-3 py-2 rounded-lg bg-slate-950 text-slate-300 border border-slate-800 hover:border-sky-500/40 transition"
-            >
-              Demo student
-            </button>
-            <button
-              type="button"
-              onClick={() => fill("trainer")}
-              className="text-xs px-3 py-2 rounded-lg bg-slate-950 text-slate-300 border border-slate-800 hover:border-emerald-500/40 transition"
-            >
-              Demo trainer
-            </button>
-          </div>
         </form>
 
         <p className="text-xs text-slate-500 text-center">
@@ -131,13 +104,6 @@ export default function LoginPage() {
             Create an account
           </Link>
         </p>
-        <div className="text-xs text-slate-600 text-center space-y-1">
-          <p>
-            Seeded demos (hashed):{" "}
-            <code className="text-slate-400">student / student</code>,{" "}
-            <code className="text-slate-400">trainer / NRAD2026</code>
-          </p>
-        </div>
       </div>
     </main>
   );
