@@ -5,12 +5,12 @@ import { useEffect, useMemo, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { MathText } from "@/components/MathText";
 import { categoryColors } from "@/lib/colors";
-import type { CategoryDto, QuestionListItem } from "@/lib/types";
+import type { CategoryDto, ProgressDto, QuestionListItem } from "@/lib/types";
 
 export default function StudentDashboardPage() {
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [questions, setQuestions] = useState<QuestionListItem[]>([]);
-  const [progress, setProgress] = useState({ answered: 0, total: 0 });
+  const [progress, setProgress] = useState<ProgressDto>({ answered: 0, total: 0 });
   const [assignmentMode, setAssignmentMode] = useState(false);
   const [tab, setTab] = useState("all");
   const [search, setSearch] = useState("");
@@ -93,11 +93,21 @@ export default function StudentDashboardPage() {
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-sky-500 transition"
               />
             </div>
-            <div className="hidden sm:flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 text-xs whitespace-nowrap">
+            <div className="hidden sm:flex items-center gap-3 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 text-xs whitespace-nowrap">
               <span className="text-slate-400">Answered:</span>
               <span className="font-bold text-emerald-400">{progress.answered}</span>
               <span className="text-slate-600">/</span>
               <span className="font-bold text-slate-300">{progress.total}</span>
+              {progress.mcAnswered ? (
+                <>
+                  <span className="text-slate-700">|</span>
+                  <span className="text-slate-400">MC:</span>
+                  <span className="font-bold text-sky-300">
+                    {progress.mcCorrect ?? 0}/{progress.mcAnswered}
+                    {progress.mcScorePct != null ? ` (${progress.mcScorePct}%)` : ""}
+                  </span>
+                </>
+              ) : null}
             </div>
           </div>
         </div>
@@ -154,10 +164,25 @@ export default function StudentDashboardPage() {
                       <h3 className="text-base font-bold text-slate-100">{q.title}</h3>
                     </div>
                     {q.answered ? (
-                      <span className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                        <i className="fa-solid fa-circle-check mr-1" />
-                        Answered
-                      </span>
+                      q.type === "MULTIPLE_CHOICE" && q.mcCorrect != null ? (
+                        <span
+                          className={`text-xs px-3 py-1.5 rounded-lg border ${
+                            q.mcCorrect
+                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                              : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                          }`}
+                        >
+                          <i
+                            className={`fa-solid ${q.mcCorrect ? "fa-circle-check" : "fa-circle-xmark"} mr-1`}
+                          />
+                          {q.mcCorrect ? "Correct" : "Incorrect"}
+                        </span>
+                      ) : (
+                        <span className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          <i className="fa-solid fa-circle-check mr-1" />
+                          Answered
+                        </span>
+                      )
                     ) : (
                       <span className="text-xs px-3 py-1.5 rounded-lg bg-slate-950 text-slate-400 border border-slate-800">
                         Not answered

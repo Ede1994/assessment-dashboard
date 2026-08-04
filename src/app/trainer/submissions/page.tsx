@@ -12,12 +12,17 @@ type StudentRow = {
   displayName: string;
   answered: number;
   total: number;
+  mcCorrect?: number;
+  mcAnswered?: number;
+  mcScorePct?: number | null;
 };
 
 type SubmissionRow = {
   id: string;
   textAnswer: string | null;
   selectedChoiceId: string | null;
+  aiFeedback: string | null;
+  aiReviewedAt: string | null;
   updatedAt: string;
   user: { id: string; username: string; displayName: string };
   selectedChoice: { id: string; label: string; isCorrect: boolean } | null;
@@ -42,6 +47,8 @@ export default function TrainerSubmissionsPage() {
   const [studentFilter, setStudentFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [aiBusyId, setAiBusyId] = useState<string | null>(null);
+  const [aiError, setAiError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -68,6 +75,36 @@ export default function TrainerSubmissionsPage() {
     if (studentFilter === "all") return submissions;
     return submissions.filter((s) => s.user.id === studentFilter);
   }, [submissions, studentFilter]);
+
+  async function runAiReview(submissionId: string) {
+    setAiBusyId(submissionId);
+    setAiError("");
+    try {
+      const res = await fetch(`/api/submissions/${submissionId}/ai-review`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAiError(data.error ?? "AI review failed");
+        return;
+      }
+      setSubmissions((prev) =>
+        prev.map((s) =>
+          s.id === submissionId
+            ? {
+                ...s,
+                aiFeedback: data.submission.aiFeedback,
+                aiReviewedAt: data.submission.aiReviewedAt,
+              }
+            : s,
+        ),
+      );
+    } catch {
+      setAiError("Network error while requesting AI review");
+    } finally {
+      setAiBusyId(null);
+    }
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -104,10 +141,17 @@ export default function TrainerSubmissionsPage() {
                   : "bg-slate-900 text-slate-400 border-slate-800"
               }`}
             >
-              {s.displayName} ({s.answered}/{s.total})
+              {s.displayName} ({s.answered}/{s.total}
+              {s.mcScorePct != null ? ` · MC ${s.mcScorePct}%` : ""})
             </button>
           ))}
         </div>
+
+        {aiError ? (
+          <p className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+            {aiError}
+          </p>
+        ) : null}
 
         {loading ? (
           <p className="text-sm text-slate-400">Loading…</p>
@@ -144,7 +188,9 @@ export default function TrainerSubmissionsPage() {
                           : "bg-rose-500/10 text-rose-400 border-rose-500/20"
                       }`}
                     >
-                      {s.selectedChoice.isCorrect ? "Correct choice" : "Incorrect choice"}
+                      {s.selectedChoice.isCorrect
+                        ? "Correct (auto-graded)"
+                        : "Incorrect (auto-graded)"}
                     </span>
                   ) : null}
                 </div>
@@ -191,6 +237,47 @@ export default function TrainerSubmissionsPage() {
                     )}
                   </div>
                 </div>
+
+                {s.question.type === "FREE_TEXT" ? (
+                  <div className="bg-slate-950 border border-violet-500/20 rounded-xl p-4 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <h4 className="text-xs font-bold text-violet-300">
+                        AI assist (trainer only)
+                      </h4>
+                      <button
+                        type="button"
+                        disabled={aiBusyId === s.id}
+                        onClick={() => runAiReview(s.id)}
+                        className="text-xs px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-60 text-white transition"
+                      >
+                        {aiBusyId === s.id
+                          ? "Asking model…"
+                          : s.aiFeedback
+                            ? "Re-run AI review"
+                            : "Generate AI review"}
+                      </button>
+                    </div>
+                    {s.aiFeedback ? (
+                      <>
+                        <p className="text-sm text-slate-200 whitespace-pre-wrap">
+                          {s.aiFeedback}
+                        </p>
+                        {s.aiReviewedAt ? (
+                          <p className="text-[11px] text-slate-500">
+                            Generated {new Date(s.aiReviewedAt).toLocaleString()}
+                          </p>
+                        ) : null}
+                      </>
+                    ) : (
+                      <p className="text-xs text-slate-500">
+                        Uses your Open WebUI / Ollama endpoint (
+                        <code className="text-slate-400">AI_BASE_URL</code> +{" "}
+                        <code className="text-slate-400">AI_API_KEY</code>). Suggestion
+                        only — it does not change the student answer.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
               </article>
             ))}
           </section>

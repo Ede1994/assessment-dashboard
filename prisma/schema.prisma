@@ -75,16 +75,18 @@ model Solution {
 }
 
 model Submission {
-  id               String   @id @default(cuid())
+  id               String    @id @default(cuid())
   userId           String
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   questionId       String
-  question         Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  question         Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
   textAnswer       String?
   selectedChoiceId String?
-  selectedChoice   Choice?  @relation(fields: [selectedChoiceId], references: [id])
-  submittedAt      DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  selectedChoice   Choice?   @relation(fields: [selectedChoiceId], references: [id])
+  aiFeedback       String?
+  aiReviewedAt     DateTime?
+  submittedAt      DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@unique([userId, questionId])
 }

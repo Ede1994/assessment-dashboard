@@ -150,6 +150,24 @@ npm start            # production server (after build); also uses port 3000 by d
 npm test             # API integration tests (auth, assignment filter, MC submit)
 ```
 
+## Grading & scoreboard
+
+- **Multiple choice** is auto-graded from `Choice.isCorrect` when a student saves an answer.
+- Students see Correct / Incorrect on their own MC answers (not the answer key for other choices).
+- Trainers see an **MC scoreboard** on `/trainer` (correct/answered %, completion, free-text count).
+
+## AI assist (Open WebUI / Ollama)
+
+Trainers can request a free-text review suggestion on `/trainer/submissions`. The app calls an OpenAI-compatible endpoint (Open WebUI → Ollama) using:
+
+| Env | Purpose |
+|-----|---------|
+| `AI_BASE_URL` | WebUI root, e.g. `http://host:8080` (appends `/api/chat/completions`) |
+| `AI_API_KEY` | Bearer API key from WebUI → Settings → Account |
+| `AI_MODEL` | Model id (default `llama3.1`) |
+
+Copy from `.env.example`, set the key, restart the app. If unset, the AI button returns a clear configuration error (HTTP 503). Feedback is stored on the submission for the trainer only and does **not** change the student answer.
+
 ## Docker (Debian/Ubuntu host)
 
 The image is based on **Debian Bookworm** and includes `node` (22), `npm`, `sqlite3`, plus `build-essential` / `python3` as a fallback for native modules.

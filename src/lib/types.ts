@@ -34,7 +34,17 @@ export type QuestionListItem = {
   category: CategoryDto;
   choices: ChoiceDto[];
   answered: boolean;
+  mcCorrect: boolean | null;
   submission: SubmissionDto | null;
+};
+
+export type ProgressDto = {
+  answered: number;
+  total: number;
+  freeTextAnswered?: number;
+  mcAnswered?: number;
+  mcCorrect?: number;
+  mcScorePct?: number | null;
 };
 
 export type SolutionDto = {

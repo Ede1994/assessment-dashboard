@@ -33,6 +33,7 @@ export async function GET() {
             selectedChoiceId: true,
             submittedAt: true,
             updatedAt: true,
+            selectedChoice: { select: { isCorrect: true } },
           },
         },
       },
@@ -40,7 +41,20 @@ export async function GET() {
   ]);
 
   const payload = questions.map((q) => {
-    const submission = q.submissions[0] ?? null;
+    const raw = q.submissions[0] ?? null;
+    const mcCorrect =
+      q.type === QuestionType.MULTIPLE_CHOICE && raw?.selectedChoice
+        ? Boolean(raw.selectedChoice.isCorrect)
+        : null;
+    const submission = raw
+      ? {
+          id: raw.id,
+          textAnswer: raw.textAnswer,
+          selectedChoiceId: raw.selectedChoiceId,
+          submittedAt: raw.submittedAt,
+          updatedAt: raw.updatedAt,
+        }
+      : null;
     return {
       id: q.id,
       title: q.title,
@@ -64,9 +78,18 @@ export async function GET() {
         ...(user.role === "TRAINER" ? { isCorrect: c.isCorrect } : {}),
       })),
       answered: Boolean(submission),
+      mcCorrect,
       submission,
     };
   });
+
+  const mcAnswered = payload.filter(
+    (q) => q.type === QuestionType.MULTIPLE_CHOICE && q.answered,
+  ).length;
+  const mcCorrectCount = payload.filter((q) => q.mcCorrect === true).length;
+  const freeTextAnswered = payload.filter(
+    (q) => q.type === QuestionType.FREE_TEXT && q.answered,
+  ).length;
 
   return NextResponse.json({
     categories: categories.filter((c) =>
@@ -77,6 +100,13 @@ export async function GET() {
     progress: {
       answered: payload.filter((q) => q.answered).length,
       total: payload.length,
+      freeTextAnswered,
+      mcAnswered,
+      mcCorrect: mcCorrectCount,
+      mcScorePct:
+        mcAnswered === 0
+          ? null
+          : Math.round((mcCorrectCount / mcAnswered) * 100),
     },
   });
 }

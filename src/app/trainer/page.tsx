@@ -11,6 +11,10 @@ type StudentRow = {
   displayName: string;
   answered: number;
   total: number;
+  freeTextAnswered: number;
+  mcAnswered: number;
+  mcCorrect: number;
+  mcScorePct: number | null;
 };
 
 export default function TrainerHomePage() {
@@ -27,7 +31,7 @@ export default function TrainerHomePage() {
         if (!res.ok) throw new Error("Failed to load overview");
         const data = await res.json();
         if (cancelled) return;
-        setStudents(data.students ?? []);
+        setStudents(data.scoreboard ?? data.students ?? []);
         setSubmissionCount((data.submissions ?? []).length);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Error");
@@ -39,6 +43,13 @@ export default function TrainerHomePage() {
       cancelled = true;
     };
   }, []);
+
+  const ranked = [...students].sort((a, b) => {
+    const ap = a.mcScorePct ?? -1;
+    const bp = b.mcScorePct ?? -1;
+    if (bp !== ap) return bp - ap;
+    return b.answered - a.answered;
+  });
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -57,8 +68,8 @@ export default function TrainerHomePage() {
             Trainer overview
           </h2>
           <p className="text-sm text-slate-400">
-            View the full answer key, inspect ideal solutions, and compare each student
-            submission side-by-side with the reference answer.
+            Multiple-choice answers are graded automatically. Free-text answers can be
+            reviewed with optional AI assist on the submissions page.
           </p>
         </section>
 
@@ -87,38 +98,66 @@ export default function TrainerHomePage() {
             </div>
 
             <section className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-800">
-                <h3 className="text-sm font-semibold text-slate-200">Student progress</h3>
+              <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between gap-3">
+                <h3 className="text-sm font-semibold text-slate-200">
+                  MC scoreboard
+                </h3>
+                <span className="text-[11px] text-slate-500">
+                  Auto-graded from correct choices
+                </span>
               </div>
-              <div className="divide-y divide-slate-800">
-                {students.map((s) => {
-                  const pct =
-                    s.total === 0 ? 0 : Math.round((s.answered / s.total) * 100);
-                  return (
-                    <div
-                      key={s.id}
-                      className="px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                    >
-                      <div>
-                        <p className="text-sm font-medium text-slate-100">
-                          {s.displayName}
-                        </p>
-                        <p className="text-xs text-slate-500">@{s.username}</p>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="w-40 bg-slate-950 rounded-full h-2 border border-slate-800 overflow-hidden">
-                          <div
-                            className="h-full bg-emerald-500"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-slate-400 tabular-nums w-20 text-right">
-                          {s.answered}/{s.total} ({pct}%)
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-xs text-slate-500 border-b border-slate-800">
+                    <tr>
+                      <th className="text-left font-medium px-5 py-3">#</th>
+                      <th className="text-left font-medium px-5 py-3">Student</th>
+                      <th className="text-right font-medium px-5 py-3">MC score</th>
+                      <th className="text-right font-medium px-5 py-3">MC correct</th>
+                      <th className="text-right font-medium px-5 py-3">Completed</th>
+                      <th className="text-right font-medium px-5 py-3">Free text</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800">
+                    {ranked.map((s, idx) => (
+                      <tr key={s.id} className="hover:bg-slate-950/60">
+                        <td className="px-5 py-3 text-slate-500 tabular-nums">
+                          {idx + 1}
+                        </td>
+                        <td className="px-5 py-3">
+                          <p className="text-slate-100 font-medium">{s.displayName}</p>
+                          <p className="text-xs text-slate-500">@{s.username}</p>
+                        </td>
+                        <td className="px-5 py-3 text-right tabular-nums">
+                          {s.mcScorePct === null ? (
+                            <span className="text-slate-600">—</span>
+                          ) : (
+                            <span
+                              className={
+                                s.mcScorePct >= 70
+                                  ? "text-emerald-400 font-semibold"
+                                  : s.mcScorePct >= 40
+                                    ? "text-amber-300 font-semibold"
+                                    : "text-rose-400 font-semibold"
+                              }
+                            >
+                              {s.mcScorePct}%
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-5 py-3 text-right text-slate-300 tabular-nums">
+                          {s.mcCorrect}/{s.mcAnswered}
+                        </td>
+                        <td className="px-5 py-3 text-right text-slate-300 tabular-nums">
+                          {s.answered}/{s.total}
+                        </td>
+                        <td className="px-5 py-3 text-right text-slate-400 tabular-nums">
+                          {s.freeTextAnswered}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </section>
 

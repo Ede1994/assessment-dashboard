@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { QuestionType } from "@/generated/prisma/client";
 import { studentCanAccessQuestion } from "@/lib/assignments";
+import { getAssignedQuestionIds } from "@/lib/assignments";
+import { computeProgressScore } from "@/lib/grading";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -42,6 +44,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Question not found" }, { status: 404 });
   }
 
+  let isCorrect: boolean | null = null;
+
   if (question.type === QuestionType.FREE_TEXT) {
     if (!textAnswer || !textAnswer.trim()) {
       return NextResponse.json(
@@ -56,10 +60,11 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    const valid = question.choices.some((c) => c.id === selectedChoiceId);
-    if (!valid) {
+    const choice = question.choices.find((c) => c.id === selectedChoiceId);
+    if (!choice) {
       return NextResponse.json({ error: "Invalid choice." }, { status: 400 });
     }
+    isCorrect = choice.isCorrect;
   }
 
   const submission = await prisma.submission.upsert({
@@ -73,16 +78,29 @@ export async function POST(request: Request) {
         question.type === QuestionType.FREE_TEXT ? textAnswer!.trim() : null,
       selectedChoiceId:
         question.type === QuestionType.MULTIPLE_CHOICE ? selectedChoiceId : null,
+      // Clear any prior AI note when the student revises.
+      aiFeedback: null,
+      aiReviewedAt: null,
     },
     update: {
       textAnswer:
         question.type === QuestionType.FREE_TEXT ? textAnswer!.trim() : null,
       selectedChoiceId:
         question.type === QuestionType.MULTIPLE_CHOICE ? selectedChoiceId : null,
+      aiFeedback: null,
+      aiReviewedAt: null,
     },
   });
 
-  return NextResponse.json({ ok: true, submission });
+  return NextResponse.json({
+    ok: true,
+    submission,
+    // Auto-grade MC only; never reveal which other choices were correct.
+    grading:
+      question.type === QuestionType.MULTIPLE_CHOICE
+        ? { isCorrect: Boolean(isCorrect) }
+        : null,
+  });
 }
 
 export async function GET() {
@@ -100,49 +118,102 @@ export async function GET() {
       },
       orderBy: { updatedAt: "desc" },
     });
-    return NextResponse.json({ submissions });
+
+    const assignedIds = await getAssignedQuestionIds(user.id);
+    const total =
+      assignedIds === null
+        ? await prisma.question.count()
+        : assignedIds.length;
+    const score = computeProgressScore(total, submissions);
+
+    return NextResponse.json({
+      submissions: submissions.map((s) => ({
+        ...s,
+        // Student-safe: only expose own MC correctness, not answer key.
+        mcCorrect:
+          s.question.type === QuestionType.MULTIPLE_CHOICE
+            ? Boolean(s.selectedChoice?.isCorrect)
+            : null,
+        selectedChoice: s.selectedChoice
+          ? {
+              id: s.selectedChoice.id,
+              label: s.selectedChoice.label,
+            }
+          : null,
+      })),
+      score,
+    });
   }
 
-  // Trainer: all student submissions with solutions
-  const submissions = await prisma.submission.findMany({
-    include: {
-      user: {
-        select: { id: true, username: true, displayName: true, role: true },
-      },
-      question: {
+  // Trainer: all student submissions with solutions + scoreboard
+  const [submissions, students, totalQuestions, mcQuestionCount] =
+    await Promise.all([
+      prisma.submission.findMany({
         include: {
-          category: true,
-          solution: true,
-          choices: { orderBy: { sortOrder: "asc" } },
+          user: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              role: true,
+            },
+          },
+          question: {
+            include: {
+              category: true,
+              solution: true,
+              choices: { orderBy: { sortOrder: "asc" } },
+            },
+          },
+          selectedChoice: true,
         },
-      },
-      selectedChoice: true,
-    },
-    orderBy: [{ userId: "asc" }, { updatedAt: "desc" }],
-  });
+        orderBy: [{ userId: "asc" }, { updatedAt: "desc" }],
+      }),
+      prisma.user.findMany({
+        where: { role: "STUDENT" },
+        select: {
+          id: true,
+          username: true,
+          displayName: true,
+          assignments: { select: { questionId: true } },
+          submissions: {
+            include: {
+              question: { select: { type: true } },
+              selectedChoice: { select: { isCorrect: true } },
+            },
+          },
+        },
+        orderBy: { username: "asc" },
+      }),
+      prisma.question.count(),
+      prisma.question.count({ where: { type: QuestionType.MULTIPLE_CHOICE } }),
+    ]);
 
-  const students = await prisma.user.findMany({
-    where: { role: "STUDENT" },
-    select: {
-      id: true,
-      username: true,
-      displayName: true,
-      _count: { select: { submissions: true, assignments: true } },
-    },
-    orderBy: { username: "asc" },
-  });
-
-  const totalQuestions = await prisma.question.count();
-
-  return NextResponse.json({
-    submissions,
-    students: students.map((s) => ({
+  const scoreboard = students.map((s) => {
+    const total =
+      s.assignments.length > 0 ? s.assignments.length : totalQuestions;
+    const score = computeProgressScore(total, s.submissions);
+    return {
       id: s.id,
       username: s.username,
       displayName: s.displayName,
-      answered: s._count.submissions,
-      total: s._count.assignments > 0 ? s._count.assignments : totalQuestions,
-      assigned: s._count.assignments,
-    })),
+      answered: score.answered,
+      total: score.total,
+      freeTextAnswered: score.freeTextAnswered,
+      mcAnswered: score.mcAnswered,
+      mcCorrect: score.mcCorrect,
+      mcScorePct: score.mcScorePct,
+      assigned: s.assignments.length,
+    };
+  });
+
+  return NextResponse.json({
+    submissions,
+    students: scoreboard,
+    scoreboard,
+    bank: {
+      totalQuestions,
+      mcQuestionCount,
+    },
   });
 }

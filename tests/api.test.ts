@@ -103,14 +103,81 @@ describe("API integration", () => {
     const submitBody = (await submitRes.json()) as {
       ok: boolean;
       submission: { selectedChoiceId: string | null };
+      grading: { isCorrect: boolean } | null;
     };
     assert.equal(submitBody.ok, true);
     assert.equal(submitBody.submission.selectedChoiceId, choice.id);
+    assert.ok(submitBody.grading);
+    assert.equal(typeof submitBody.grading.isCorrect, "boolean");
 
     const again = await apiFetch(jar, "/api/questions");
-    const againBody = (await again.json()) as { questions: QuestionDto[] };
+    const againBody = (await again.json()) as {
+      questions: QuestionDto[];
+      progress: {
+        mcAnswered: number;
+        mcCorrect: number;
+        mcScorePct: number | null;
+      };
+    };
     const updated = againBody.questions.find((q) => q.id === mc.id);
     assert.ok(updated?.answered);
+    assert.ok(againBody.progress.mcAnswered >= 1);
+
+    // Trainer scoreboard includes MC stats.
+    const trainer = await login("trainer", "NRAD2026");
+    const boardRes = await apiFetch(trainer.jar, "/api/submissions");
+    assert.equal(boardRes.status, 200);
+    const board = (await boardRes.json()) as {
+      scoreboard: Array<{
+        username: string;
+        mcAnswered: number;
+        mcCorrect: number;
+        mcScorePct: number | null;
+      }>;
+    };
+    const studentRow = board.scoreboard.find((s) => s.username === "student");
+    assert.ok(studentRow);
+    assert.ok(studentRow.mcAnswered >= 1);
+
+    // AI review requires trainer + free-text; unauthenticated fails.
+    const free = list.questions.find((q) => q.type === "FREE_TEXT");
+    if (free) {
+      await apiFetch(jar, "/api/submissions", {
+        method: "POST",
+        body: JSON.stringify({
+          questionId: free.id,
+          textAnswer: "Short test answer for AI route auth checks.",
+        }),
+      });
+      const trainerSubs = await apiFetch(trainer.jar, "/api/submissions");
+      const trainerSubsBody = (await trainerSubs.json()) as {
+        submissions: Array<{
+          id: string;
+          question: { id: string; type: string };
+          user: { username: string };
+        }>;
+      };
+      const ft = trainerSubsBody.submissions.find(
+        (s) =>
+          s.user.username === "student" &&
+          s.question.type === "FREE_TEXT" &&
+          s.question.id === free.id,
+      );
+      assert.ok(ft);
+      const anonAi = await apiFetch(
+        createCookieJar(),
+        `/api/submissions/${ft.id}/ai-review`,
+        { method: "POST" },
+      );
+      assert.equal(anonAi.status, 401);
+      const aiRes = await apiFetch(
+        trainer.jar,
+        `/api/submissions/${ft.id}/ai-review`,
+        { method: "POST" },
+      );
+      // 503 when AI env not configured in test; 502/200 if somehow configured.
+      assert.ok([200, 502, 503].includes(aiRes.status));
+    }
 
     // Unauthenticated submit fails.
     const anon = createCookieJar();

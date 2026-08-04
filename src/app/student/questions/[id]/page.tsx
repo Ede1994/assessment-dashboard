@@ -22,6 +22,7 @@ export default function StudentQuestionPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [mcCorrect, setMcCorrect] = useState<boolean | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,6 +35,9 @@ export default function StudentQuestionPage() {
         setQuestion(data);
         setTextAnswer(data.submission?.textAnswer ?? "");
         setSelectedChoiceId(data.submission?.selectedChoiceId ?? null);
+        setMcCorrect(
+          typeof data.mcCorrect === "boolean" ? data.mcCorrect : null,
+        );
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Error");
       } finally {
@@ -68,7 +72,16 @@ export default function StudentQuestionPage() {
         setError(data.error ?? "Could not save");
         return;
       }
-      setMessage("Answer saved.");
+      if (question.type === "MULTIPLE_CHOICE" && data.grading) {
+        setMcCorrect(Boolean(data.grading.isCorrect));
+        setMessage(
+          data.grading.isCorrect
+            ? "Saved — correct."
+            : "Saved — incorrect. You can change your answer and try again.",
+        );
+      } else {
+        setMessage("Answer saved.");
+      }
       router.refresh();
     } catch {
       setError("Network error");
@@ -131,6 +144,17 @@ export default function StudentQuestionPage() {
             <span className="text-xs text-slate-500 border border-slate-800 px-2 py-1 rounded-full">
               {question.type === "FREE_TEXT" ? "Free text" : "Multiple choice"}
             </span>
+            {question.type === "MULTIPLE_CHOICE" && mcCorrect != null ? (
+              <span
+                className={`text-xs px-2.5 py-1 rounded-full border ${
+                  mcCorrect
+                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                    : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                }`}
+              >
+                {mcCorrect ? "Correct" : "Incorrect"}
+              </span>
+            ) : null}
           </div>
 
           <h2 className="text-xl font-bold text-slate-100">{question.title}</h2>

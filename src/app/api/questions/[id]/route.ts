@@ -34,6 +34,7 @@ export async function GET(_request: Request, { params }: Params) {
       submissions: {
         where: { userId: user.id },
         take: 1,
+        include: { selectedChoice: { select: { isCorrect: true } } },
       },
     },
   });
@@ -42,8 +43,23 @@ export async function GET(_request: Request, { params }: Params) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const submission = question.submissions[0] ?? null;
+  const raw = question.submissions[0] ?? null;
   const isTrainer = user.role === "TRAINER";
+  const mcCorrect =
+    question.type === QuestionType.MULTIPLE_CHOICE && raw?.selectedChoice
+      ? Boolean(raw.selectedChoice.isCorrect)
+      : null;
+  const submission = raw
+    ? {
+        id: raw.id,
+        textAnswer: raw.textAnswer,
+        selectedChoiceId: raw.selectedChoiceId,
+        submittedAt: raw.submittedAt,
+        updatedAt: raw.updatedAt,
+        aiFeedback: isTrainer ? raw.aiFeedback : undefined,
+        aiReviewedAt: isTrainer ? raw.aiReviewedAt : undefined,
+      }
+    : null;
 
   return NextResponse.json({
     id: question.id,
@@ -63,6 +79,7 @@ export async function GET(_request: Request, { params }: Params) {
       ...(isTrainer ? { isCorrect: c.isCorrect } : {}),
     })),
     solution: isTrainer ? question.solution : undefined,
+    mcCorrect,
     submission,
   });
 }

@@ -9,8 +9,6 @@ Last updated: 2026-08-04
 ## Open
 
 ### Product / features
-- [ ] Automated grading for multiple-choice (scoreboard)
-- [ ] AI-assist for free-text review
 - [ ] Trainer can assign by **category presets** in one click (CT-track, MRI-track, PyTorch-only) — partial: category +/- buttons exist; named presets would help
 - [ ] Student progress emails / export of submissions (CSV/PDF)
 - [ ] German UI locale toggle (content is English by design)
@@ -30,6 +28,10 @@ Last updated: 2026-08-04
 ---
 
 ## Done
+
+### MC scoreboard + AI free-text assist (2026-08-04)
+- [x] Auto-grade MC on submit; student Correct/Incorrect; trainer MC scoreboard on overview
+- [x] Trainer AI assist via Open WebUI OpenAI-compatible API (`AI_BASE_URL` / `AI_API_KEY` / `AI_MODEL`)
 
 ### Docker + API tests (2026-08-04)
 - [x] Multi-stage Debian Bookworm Docker image (`node` 22, `npm`, `sqlite3`, build tools) + `docker compose`
