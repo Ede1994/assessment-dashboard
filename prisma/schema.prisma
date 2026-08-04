@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Role {
+  STUDENT
+  TRAINER
+}
+
+enum QuestionType {
+  FREE_TEXT
+  MULTIPLE_CHOICE
+}
+
+model User {
+  id           String               @id @default(cuid())
+  username     String               @unique
+  password     String
+  role         Role
+  displayName  String
+  submissions  Submission[]
+  assignments  QuestionAssignment[]
+  createdAt    DateTime             @default(now())
+}
+
+model Category {
+  id        String     @id @default(cuid())
+  slug      String     @unique
+  name      String
+  icon      String
+  color     String
+  sortOrder Int
+  questions Question[]
+}
+
+model Question {
+  id          String               @id @default(cuid())
+  categoryId  String
+  category    Category             @relation(fields: [categoryId], references: [id])
+  title       String
+  prompt      String
+  roundLabel  String
+  tags        String
+  type        QuestionType
+  codeSnippet String?
+  sortOrder   Int
+  choices     Choice[]
+  solution    Solution?
+  submissions Submission[]
+  assignments QuestionAssignment[]
+}
+
+model Choice {
+  id          String       @id @default(cuid())
+  questionId  String
+  question    Question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  label       String
+  isCorrect   Boolean      @default(false)
+  sortOrder   Int          @default(0)
+  submissions Submission[]
+}
+
+model Solution {
+  id           String   @id @default(cuid())
+  questionId   String   @unique
+  question     Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  idealAnswer  String
+  explanation  String
+  codeSolution String?
+}
+
+model Submission {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionId       String
+  question         Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  textAnswer       String?
+  selectedChoiceId String?
+  selectedChoice   Choice?  @relation(fields: [selectedChoiceId], references: [id])
+  submittedAt      DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([userId, questionId])
+}
+
+model QuestionAssignment {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now())
+
+  @@unique([userId, questionId])
+  @@index([userId])
+}

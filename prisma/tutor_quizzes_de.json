@@ -1,0 +1,207 @@
+[
+  {
+    "num": "Q1.1",
+    "prompt_de": "Warum ist eine lineare Aktivierungsfunktion für tiefe Netze wertlos?",
+    "answer_de": "Weil die Verkettung linearer Funktionen selbst wieder linear ist. Ein 50-Layer-Netz mit φ(z) = z ließe sich mathematisch zu einer einzigen linearen Transformation kollabieren — die Tiefe brächte keinen zusätzlichen Ausdrucksreichtum. Nichtlinearität ist die Voraussetzung dafür, dass zusätzliche Schichten überhaupt neue Hypothesen ausdrücken können. Ravì et al. formulieren das in Sec. II direkt: „adding more hidden layers … allows a deep architecture that can express more complex hypotheses\" — der Punkt bezieht sich implizit auf nichtlineare Layer."
+  },
+  {
+    "num": "Q1.2",
+    "prompt_de": "Löst ReLU das Vanishing-Gradient-Problem?",
+    "answer_de": "Nur teilweise — und das ist wichtig. ReLU hat für z > 0 eine Ableitung von 1, was das Verschwinden der Gradienten im positiven Bereich verhindert. Aber:\n\n - Für z < 0 ist die Ableitung exakt 0 → Dying ReLU (Neuronen können permanent „tot\" bleiben).\n\n - In sehr tiefen Netzen (> 50 Layer) reicht ReLU allein nicht — man braucht zusätzlich Residual Connections (ResNet, 2015) und/oder Batch Normalization.\n\n Wer schreibt „ReLU löst das Problem\", macht die Sache also zu einfach."
+  },
+  {
+    "num": "Q1.3",
+    "prompt_de": "Was ist der Unterschied zwischen einem Parameter und einem Hyperparameter?",
+    "answer_de": "Parameter (z. B. Gewichte w, Bias b) werden vom Optimizer per Gradientenabstieg gelernt. Hyperparameter (Lernrate η, Batchgröße, Anzahl Layer, Dropout-Rate) werden von Ihnen gesetzt — vor dem Training. Die Kunst des Fine-Tunings besteht meist darin, gute Hyperparameter zu finden, nicht die Parameter selbst."
+  },
+  {
+    "num": "Q1.4",
+    "prompt_de": "Wenn Ihr Loss beim Training auf NaN springt — was sind die drei häufigsten Ursachen?",
+    "answer_de": "- Lernrate zu hoch: Der Optimizer schießt in einen Bereich mit extrem großen Gradienten und explodiert.\n\n - Division durch 0 / Log(0): Oft in Loss-Funktionen wie Cross-Entropy ohne log_softmax-Stabilisierung.\n\n - Vergessenes zero_grad(): Akkumulierte Gradienten werden über die Epochen immer größer.\n\n Bonus: Falsche Datenaufbereitung (z. B. inf-Werte im Input) ist der vierte Klassiker."
+  },
+  {
+    "num": "Q1.5",
+    "prompt_de": "Berechnen Sie: Was ist σ'(z) — die Ableitung der Sigmoid-Funktion — an der Stelle z = 0?",
+    "answer_de": "Die praktische Formel: σ'(z) = σ(z)·(1 − σ(z)). Bei z = 0: σ(0) = 0.5, also σ'(0) = 0.5·0.5 = 0.25. Das ist gleichzeitig das Maximum der Sigmoid-Ableitung — überall sonst ist sie kleiner. Für |z| > 5 fällt σ' unter 0.007. Das ist genau die Ursache des vanishing gradient: In einem 10-Layer-Sigmoid-Netz wird der Gradient in der Backpropagation mit Faktoren < 0.25 in jeder Schicht multipliziert — nach 10 Layern bleibt praktisch nichts übrig."
+  },
+  {
+    "num": "Q1.6",
+    "prompt_de": "Warum wird bei Cross-Entropy-Loss typischerweise log_softmax statt softmax + log berechnet?",
+    "answer_de": "Wegen numerischer Stabilität. Ein rohes Logit von z. B. 100 führt bei softmax zu e¹⁰⁰ — das überläuft float32. log_softmax nutzt den „Log-Sum-Exp-Trick\": log(σ(zᵢ)) = zᵢ − max(z) − log(Σⱼ exp(zⱼ − max(z))). Durch die Subtraktion des Maximums bleiben die Exponenten klein. Deshalb kombiniert PyTorch beides in nn.CrossEntropyLoss."
+  },
+  {
+    "num": "Q1.7",
+    "prompt_de": "Was ist der Unterschied zwischen SGD, SGD mit Momentum und Adam?",
+    "answer_de": "- SGD (vanilla): θ ← θ − η·∇L. Einfachster Update-Schritt, keine Speicherzustände.\n\n - SGD + Momentum: Berücksichtigt exponentiell gewichteten Durchschnitt vergangener Gradienten. Bewirkt „Trägheit\" — hilft, flache Bereiche und lokale Minima zu überwinden.\n\n - Adam: Kombiniert Momentum mit einer adaptiven Lernrate pro Parameter (schätzt zweites Moment der Gradienten). Konvergiert oft schneller ohne aufwendiges Lernraten-Tuning. Standard-Wahl heute.\n\n Ehrlicher Zusatz: In einigen Domänen (klassische ImageNet-Klassifikation) schlägt SGD+Momentum mit sorgfältig getuntem Schedule Adam auf der Testmenge. Adam ist bequemer, nicht immer besser."
+  },
+  {
+    "num": "Q2.1",
+    "prompt_de": "Wie groß ist die Ausgabe eines Conv2d(3×3, stride=1, padding=1) angewendet auf ein 256×256-Bild?",
+    "answer_de": "Nach der Formel: (256 + 2·1 − 3)/1 + 1 = 256. Mit padding=1 und stride=1 bleibt die räumliche Auflösung erhalten. Genau das ist die Standardkonfiguration in modernen CNNs — die Auflösungsreduktion überlässt man dann Pooling- oder Strided-Conv-Layern."
+  },
+  {
+    "num": "Q2.2",
+    "prompt_de": "Warum ist Max-Pooling in der Segmentierung problematisch?",
+    "answer_de": "Weil Max-Pooling Ortsinformation zerstört. Für Klassifikation („ist da ein Tumor?\") ist das egal — für Segmentierung („welche Pixel gehören zum Tumor?\") ein Desaster. Deshalb kombiniert das U-Net (Modul 4) Encoder-Downsampling mit Skip Connections, die die verlorenen Detailinformationen im Decoder wieder einspeisen."
+  },
+  {
+    "num": "Q2.3",
+    "prompt_de": "Ein CNN hat drei Conv2d-Layer mit je 3×3-Kernels. Wie groß ist das rezeptive Feld eines Neurons in Layer 3?",
+    "answer_de": "Ohne Pooling: 3 + 2 + 2 = 7×7. Grund: Jeder zusätzliche 3×3-Layer erweitert das rezeptive Feld um 2 in jede Richtung. Deshalb bevorzugte VGG viele kleine 3×3-Layer gegenüber wenigen 7×7-Layern — gleiches rezeptives Feld, aber tiefere Nichtlinearität und weniger Parameter."
+  },
+  {
+    "num": "Q2.4",
+    "prompt_de": "Warum sind CNNs bei anisotropen 3D-CT-Volumina problematisch?",
+    "answer_de": "Standard-CNNs behandeln alle räumlichen Dimensionen gleich. Ein CT hat aber typisch In-Plane 0,5–1 mm und Slice-Dicke 3–5 mm — die z-Achse ist drastisch unterschiedlich. Ein 3×3×3-Kernel „sieht\" in z-Richtung viel mehr Anatomie als in x-y. Ravì et al. verweisen genau darauf: „segmentation problems in MRI and CT are inherently 3-D … further complicated by the anisotropic voxel size\". Modul 5 zeigt die Lösungsansätze."
+  },
+  {
+    "num": "Q2.5",
+    "prompt_de": "Berechnen Sie die Parameter von Conv2d(64→128, kernel=5×5, bias=True).",
+    "answer_de": "Formel: C_out · (C_in · k_H · k_W + 1) = 128 · (64·5·5 + 1) = 128 · 1601 = 204.928 Parameter.\n\n Zum Vergleich: Der gleiche Layer mit 3×3-Kernel hätte 128·(64·9+1) = 73.856 — deutlich weniger. Deshalb dominiert 3×3 in modernen Architekturen: fast dasselbe rezeptive Feld nach 2 Stapel-Layern (5×5), aber weniger Parameter und mehr Nichtlinearität."
+  },
+  {
+    "num": "Q2.6",
+    "prompt_de": "Wie unterscheidet sich Global Average Pooling (GAP) vom normalen Average Pooling?",
+    "answer_de": "Normales Average Pooling mittelt über einen kleinen Bereich (z. B. 2×2) und reduziert die Auflösung. Global Average Pooling mittelt über die komplette räumliche Ausdehnung jeder Feature Map und produziert genau einen Skalar pro Kanal. Aus einem Tensor [B, 512, 7, 7] wird [B, 512, 1, 1] — ein 512-dim Vektor pro Bild.\n\n Warum genial: Man ersetzt damit den letzten (parametergewaltigen) Flatten+FC-Layer durch eine parameterlose Operation. In ResNet spart das viele Millionen Parameter gegenüber VGG."
+  },
+  {
+    "num": "Q2.7",
+    "prompt_de": "Was passiert genau bei der Ausgabegröße, wenn ein 224×224-Bild durch Conv2d(3×3, stride=1, padding=0) läuft — und was ist das Problem?",
+    "answer_de": "(224 + 0 − 3)/1 + 1 = 222. Das Bild schrumpft in jeder Faltung um 2 Pixel. Nach 10 solchen Layern hintereinander: 224 → 204. Nach 50 Layern wäre das Bild verschwunden.\n\n Das ist ein handfestes Problem: In tiefen Netzen ohne Padding gehen Randinformationen systematisch verloren, und die Ausgabegröße wird schwer vorhersagbar. Deshalb ist padding='same' (also padding=(kernel−1)/2 bei ungeradem Kernel) heute Standard."
+  },
+  {
+    "num": "Q2.8",
+    "prompt_de": "Ein CNN hat fünf Conv3×3-Layer, zwischen jedem einen MaxPool2×2. Ein Neuron in Layer 5 „sieht\" wie viel vom Eingabebild?",
+    "answer_de": "Ohne Pooling wüchse das rezeptive Feld linear (2 Pixel pro Conv-Layer). Mit Pooling zwischen jedem Conv verdoppelt sich zusätzlich die effektive Kernel-Größe im Ursprungsbild.\n\n Grobe Rechnung: RF(1)=3, RF(2)=3+2·2=7, RF(3)=7+2·4=15, RF(4)=15+2·8=31, RF(5)=31+2·16=63. Nach fünf Blöcken sieht ein einzelnes Neuron im letzten Layer also einen ca. 63×63-Bereich des Ursprungsbildes.\n\n Genau deshalb sind tiefe CNNs für Kontextaufgaben so mächtig — späte Neuronen sehen fast das gesamte Bild."
+  },
+  {
+    "num": "Q2.9",
+    "prompt_de": "Warum ist die Anzahl an FLOPs bei tiefen CNNs oft dominiert von frühen Layern, obwohl späte Layer mehr Kanäle haben?",
+    "answer_de": "Weil die räumliche Auflösung dominiert. FLOPs eines Conv-Layers: H·W·C_in·C_out·k². Frühe Layer haben zwar wenige Kanäle, aber volle Auflösung. Beispiel bei ResNet-50 mit 224×224 Input:\n\n - Layer 1 (Conv7×7, 3→64, stride 2): 224²·3·64·49 ≈ 470 Mio FLOPs\n\n - Layer im späten Block (512→512, 3×3, 14×14): 14²·512·512·9 ≈ 460 Mio FLOPs\n\n Die Verhältnisse verschieben sich je nach Architektur, aber das räumliche Ausmaß ist immer die entscheidende Größe."
+  },
+  {
+    "num": "Q3.1",
+    "prompt_de": "Warum löst ResNet das Problem des vanishing gradient?",
+    "answer_de": "Weil die Skip Connection einen direkten Gradientenpfad zurück zu früheren Layern schafft. Mathematisch: Die Ableitung von y = F(x) + x nach x enthält immer den Term „+1\" — der Gradient kann nie ganz verschwinden. Zusätzlicher Effekt: Wenn ein Block „nichts Nützliches\" lernt, kann er einfach zur Identität degenerieren (F→0), ohne den Rest des Netzes zu schädigen."
+  },
+  {
+    "num": "Q3.2",
+    "prompt_de": "Warum ist es sinnvoll, beim Fine-Tuning eine kleinere Lernrate zu nutzen als beim Training from scratch?",
+    "answer_de": "Weil das vortrainierte Modell bereits nahe an einem guten Minimum ist. Eine große Lernrate würde die sorgfältig gelernten Features durch aggressive Updates zerstören („catastrophic forgetting\"). Typisch: 1e-4 statt 1e-3. Manchmal verwendet man diskriminative Lernraten — kleiner für frühe, größer für späte Layer."
+  },
+  {
+    "num": "Q3.3",
+    "prompt_de": "Ihr Fine-Tuning-Modell zeigt 99% Trainings-Accuracy, aber nur 62% Validierungs-Accuracy. Was tun?",
+    "answer_de": "Klassisches Overfitting. Hebelmöglichkeiten in Reihenfolge der Wirksamkeit:\n\n - Data Augmentation (Rotation, Flip, Elastic Deformation) — der wirksamste Hebel bei kleinen Datensätzen.\n\n - Mehr Layer einfrieren — reduziert die effektive Modellkapazität.\n\n - Dropout im Klassifikationskopf erhöhen.\n\n - Early Stopping — Training abbrechen, sobald der Validierungs-Loss steigt.\n\n - Weight Decay (L2-Regularisierung) im Optimizer.\n\n Und die unpopuläre Antwort: möglicherweise ist Ihr Datensatz einfach zu klein. Kein Trick der Welt kann das vollständig kompensieren."
+  },
+  {
+    "num": "Q3.4",
+    "prompt_de": "Warum funktioniert BatchNorm während der Inferenz anders als beim Training?",
+    "answer_de": "Beim Training wird μ und σ² pro Mini-Batch berechnet. Bei der Inferenz haben Sie oft nur ein einzelnes Bild — Batch-Statistiken wären unsinnig. Deshalb speichert BatchNorm während des Trainings gleitende Durchschnitte (running mean, running variance) und benutzt diese fest bei der Inferenz.\n\n Praktische Konsequenz: In PyTorch müssen Sie vor der Evaluation model.eval() aufrufen, damit BatchNorm auf die Inferenz-Statistiken umschaltet. Gleiches für Dropout (das im Inferenzmodus deaktiviert wird). Wer das vergisst, sieht rauschende, oft schlechtere Ergebnisse."
+  },
+  {
+    "num": "Q3.5",
+    "prompt_de": "Wie viele Parameter hat ein BatchNorm2d-Layer mit 128 Kanälen?",
+    "answer_de": "256 lernbare Parameter (γ und β je 128). Zusätzlich werden zwei nicht-trainierbare Buffers gespeichert (running_mean, running_var — je 128), die zwar in der Modellgröße auftauchen, aber vom Optimizer nicht upgedatet werden. Wichtig fürs Speichern und Laden: die Buffers müssen mitgespeichert werden, sonst funktioniert Inferenz nicht mehr korrekt."
+  },
+  {
+    "num": "Q3.6",
+    "prompt_de": "Warum ist GoogLeNet (7M Parameter) trotz weniger Parameter besser als VGG-16 (138M Parameter)?",
+    "answer_de": "Drei architektonische Ideen des Inception-Moduls:\n\n - 1×1-Faltungen als „Bottleneck\" reduzieren Kanäle drastisch vor teuren 3×3/5×5-Faltungen.\n\n - Parallel-Pfade mit unterschiedlichen Kernel-Größen (1×1, 3×3, 5×5) erfassen Features auf mehreren Skalen gleichzeitig.\n\n - Global Average Pooling statt gigantischem Flatten+FC-Kopf spart ~90% der Parameter.\n\n Lehre daraus: Mehr Parameter sind nicht automatisch besser. Architektonisches Design schlägt rohe Kapazität — besonders bei kleinen medizinischen Datensätzen."
+  },
+  {
+    "num": "Q3.7",
+    "prompt_de": "Für ein Retina-Klassifikationsproblem mit 800 Bildern haben Sie zwei Optionen: ResNet-152 (60M Params) oder ResNet-18 (11M Params). Welche wählen Sie?",
+    "answer_de": "ResNet-18. Bei 800 Bildern ist die Wahrscheinlichkeit hoch, dass ResNet-152 overfittet, egal wie stark Sie augmentieren. Faustregel: Anzahl trainierbarer Parameter sollte nicht wesentlich größer sein als 10× die Anzahl der Trainingsbeispiele bei aggressiver Augmentation.\n\n Zusätzlich: Beim Fine-Tuning frieren Sie ohnehin die frühen Layer ein — der effektive Modellkomplexitätsvorteil von ResNet-152 verschwindet dann fast vollständig. Und die Trainingszeit steigt.\n\n Nicht-triviale Ergänzung: Manchmal ist ein pre-trained ResNet-50 der beste Kompromiss — genug Kapazität, genug Vortrainings-Robustheit, moderate Rechenzeit."
+  },
+  {
+    "num": "Q4.1",
+    "prompt_de": "Warum wird bei den Skip Connections im U-Net konkateniert und nicht addiert wie bei ResNet?",
+    "answer_de": "Weil die Feature-Maps aus Encoder und Decoder unterschiedliche semantische Bedeutungen haben. Encoder-Features sind lokal-detailreich, Decoder-Features sind semantisch reich. Durch Konkatenation bleiben beide erhalten und das folgende Conv-Layer kann selbst entscheiden, wie es sie mischt. Addition würde die Information direkt vermischen und den Decoder zwingen, exakt die gleiche Kanalstruktur zu haben. Es gibt Varianten (z. B. ResU-Net), die Addition nutzen — die Konkatenation ist aber das klassische Design."
+  },
+  {
+    "num": "Q4.2",
+    "prompt_de": "Warum reicht Pixel-Accuracy als Metrik bei medizinischer Segmentierung nicht?",
+    "answer_de": "Wegen des Klassenungleichgewichts. Wenn 99% der Voxel „Hintergrund\" sind, ist ein triviales Modell bereits bei 99% Accuracy. Berichten Sie stattdessen Dice / IoU pro Klasse, und für klinische Studien zusätzlich Hausdorff-Distanz (misst den maximalen Fehler am Rand) und Surface Dice. Ein einzelner Metrik-Wert ist immer trügerisch."
+  },
+  {
+    "num": "Q4.3",
+    "prompt_de": "Was ist der Unterschied zwischen ConvTranspose2d und einem einfachen Upsample?",
+    "answer_de": "Ein Upsample (bilinear/nearest) ist eine feste, nicht lernbare Interpolation. Eine ConvTranspose2d (auch: „Deconvolution\", „Fractionally-Strided Convolution\") ist eine lernbare Upsampling-Operation mit Gewichten. Praktisch: ConvTranspose kann feinere Rekonstruktionen lernen, produziert aber gelegentlich Checkerboard-Artefakte (Odena et al., 2016). Deshalb verwenden viele moderne Varianten „Upsample + Conv\" als robuste Alternative."
+  },
+  {
+    "num": "Q4.4",
+    "prompt_de": "Ihr Dice-Score ist 0.85 bei einer Blasensegmentierung, aber der Chirurg sagt, das Modell sei „unbrauchbar\". Was übersehen Sie?",
+    "answer_de": "Dice ist ein volumetrisches Maß und toleriert kleine Randfehler. Aber:\n\n - Für die Bestrahlungsplanung zählt jeder Millimeter am Rand — ein Dice von 0.85 kann bedeuten, dass 3–5 mm am Rand danebenliegen, was klinisch signifikant ist.\n\n - Dice sieht keine Topologie. Eine „Blase\" mit einem Loch drin hat vielleicht guten Dice, ist aber anatomisch Unsinn.\n\n - Selten aber wichtig: „false positives\" außerhalb der Zielregion (isolierte Voxel im Bein) — visuell verheerend, metrisch fast unsichtbar.\n\n Klinische Akzeptanz braucht qualitative Inspektion durch Fachpersonal, nicht nur Metriken."
+  },
+  {
+    "num": "Q4.5",
+    "prompt_de": "Berechnen Sie den Dice-Wert für: GT = 500 Voxel, Prediction = 550 Voxel, Überlappung = 400 Voxel.",
+    "answer_de": "Dice = 2·400 / (500 + 550) = 800/1050 ≈ 0.762.\n\n Zusätzlich: 100 Voxel der GT wurden nicht erkannt (FN = 100), 150 Voxel wurden fälschlich als Positiv markiert (FP = 150). Sensitivität = 400/500 = 0.80. Präzision (PPV) = 400/550 = 0.727.\n\n Beobachtung: Dice ≈ das harmonische Mittel von Sensitivität und Präzision — deshalb ist Dice nur dann hoch, wenn beide hoch sind. Ein einseitig hoher Wert (z. B. Sens=1, PPV=0.5) bleibt bei Dice ≈ 0.67 hängen."
+  },
+  {
+    "num": "Q4.6",
+    "prompt_de": "Was ist der Tversky-Loss und warum kann er in der Onkologie sinnvoller sein als Dice?",
+    "answer_de": "Tversky = TP / (TP + α·FP + β·FN). Bei α = β = 0.5 ist er identisch mit Dice. Interessant wird es bei asymmetrischer Wahl:\n\n - α = 0.3, β = 0.7: False Negatives (übersehene Tumorvoxel) werden stärker bestraft als False Positives. Das Modell wird „sensitiver\" — es lernt lieber, etwas zu viel zu markieren.\n\n - Klinisch: Ein übersehener Tumor ist schlimmer als ein falsch markierter (der wird beim Review korrigiert). Deshalb neigen onkologische Segmentierungsnetze zu asymmetrischer Loss-Gewichtung.\n\n Der Focal Tversky Loss (Abraham & Khan, 2019) kombiniert das mit dem Focal-Loss-Prinzip."
+  },
+  {
+    "num": "Q4.7",
+    "prompt_de": "Warum ist der originale U-Net-Aufsatz von Ronneberger et al. (2015) in der Medizin so einflussreich geworden — trotz relativ einfacher Architektur?",
+    "answer_de": "Drei Gründe:\n\n - Es funktioniert mit wenigen Daten. Die originale Publikation zeigte, dass mit nur 30 (!) annotierten Zellbildern und aggressiver Augmentation (elastische Deformation) Weltklasse-Segmentierung möglich ist. Das ist medizinnah.\n\n - Es ist konzeptionell einfach. Encoder + Decoder + Skips — jeder Doktorand kann das in einem Nachmittag implementieren.\n\n - Es lässt sich beliebig erweitern. Attention U-Net, ResU-Net, Dense U-Net, Swin-UNETR — die Grundstruktur trägt viele Varianten.\n\n Ehrlicher Zusatz: Isensee et al. zeigten mit nnU-Net (2021), dass die Wahl der Architektur oft weniger wichtig ist als die konsequente Datenaufbereitung, Augmentation und Nachverarbeitung. Ihre Botschaft: „Das Standard-U-Net, richtig konfiguriert, schlägt fast alle exotischen Varianten.\" Das relativiert die Innovationsschraube der letzten Jahre erheblich."
+  },
+  {
+    "num": "Q4.8",
+    "prompt_de": "Was ist ein Attention U-Net und welches Problem löst es?",
+    "answer_de": "Oktay et al. (2018) fügten Skip Connections „Attention Gates\" hinzu. Idee: Nicht jede Encoder-Feature-Map ist im Decoder gleich wichtig. Ein Gate lernt, welche Regionen der Skip-Feature-Map relevant sind, und dämpft den Rest.\n\n Mathematisch: g (Signal aus tieferer Schicht) und x (Skip-Feature-Map) werden kombiniert zu einem Aufmerksamkeitskoeffizienten α ∈ (0,1), der die Skip-Feature-Map elementweise gewichtet.\n\n Wo hilft es? Bei Aufgaben mit vielen irrelevanten Bereichen — z. B. Pankreas-Segmentierung im CT (Pankreas ist klein, umgebendes Gewebe groß). Ehrlich: In vielen anderen Aufgaben ist der Unterschied zum Standard-U-Net gering."
+  },
+  {
+    "num": "Q5.1",
+    "prompt_de": "Warum sollten Sie bei einem Thorax-Klassifikator nicht vertikal flippen?",
+    "answer_de": "Weil die Herzsituation asymmetrisch ist (linkes Herz größer, dexter Bogen, etc.). Ein vertikal geflipptes Bild würde für das Modell wie Situs inversus aussehen — eine seltene, aber echte Anomalie. Sie trainieren dann implizit auf einer Mischverteilung und verlieren die Fähigkeit, Situs inversus zu diagnostizieren. Merksatz: Augmentation muss klinisch plausible Varianten erzeugen, keine unphysiologischen."
+  },
+  {
+    "num": "Q5.2",
+    "prompt_de": "Ihr Modell erreicht Dice 0.92 in-house, aber Dice 0.71 im externen Testset. Der Chefarzt fragt, ob Sie „einfach nachtrainieren\" können. Was antworten Sie?",
+    "answer_de": "Erstens: Ja, aber nur mit vorsichtiger Methodik. Kandidaten:\n\n - Domain Adaptation: Fine-Tuning auf einer kleinen annotierten Menge aus der Zieldomäne.\n\n - Domain Randomization: Aggressivere Augmentation (Intensity, Bias Field, Rauschen).\n\n - Test-Time Adaptation: Statistiken der Batch-Norm-Layer auf dem Zieldatensatz aktualisieren.\n\n Zweitens: Wenn das Modell schon zugelassen ist, ist „einfach nachtrainieren\" regulatorisch nicht trivial — es entsteht potenziell ein neues Medizinprodukt. Das ist der wichtigere Teil der Antwort."
+  },
+  {
+    "num": "Q5.3",
+    "prompt_de": "Eine Grad-CAM-Heatmap zeigt die Aufmerksamkeit korrekt auf dem Rundherd. Können Sie damit sagen, dass Ihr Modell den Rundherd „versteht\"?",
+    "answer_de": "Nein. Grad-CAM zeigt Korrelation, keine Kausalität. Das Modell könnte auf Nebenmerkmale reagieren (Textur, umgebende Gefäße), die zufällig genau am Ort des Rundherds liegen. Wirkliche Kausalitätstests brauchen Interventionsexperimente: Herausschneiden der ROI, Perturbationen, oder methodische Validierung mit synthetischen Läsionen. Adebayo et al. (2018) zeigten sogar, dass viele Saliency-Methoden bei zufällig gewichteten Netzen plausible Ergebnisse liefern — ein alarmierendes Sanity-Check-Ergebnis."
+  },
+  {
+    "num": "Q5.4",
+    "prompt_de": "Warum ist 2.5D-Verarbeitung ein guter Kompromiss bei anisotropen MRT-Daten?",
+    "answer_de": "Weil sie 3D-Kontext einfängt, ohne die 3D-Rechenkosten zu zahlen. Der Trick: Für jedes Ziel-Voxel extrahiert man drei orthogonale 2D-Patches (axial, sagittal, koronal) und speist sie durch ein 2D-CNN. Vorteile: schnell, kleinerer Speicher, umgeht das anisotrope Kernel-Problem. Nachteil: Die drei Ebenen werden meist unabhängig verarbeitet und erst spät fusioniert — echte 3D-Kohärenz ist begrenzt. Ravì et al. verweisen genau auf diesen Ansatz.[1]"
+  },
+  {
+    "num": "Q5.5",
+    "prompt_de": "Ein Kollege präsentiert ein Modell mit 98% Accuracy auf einem Datensatz mit 95% Klassenungleichgewicht. Was fragen Sie?",
+    "answer_de": "Die richtige Frage ist nicht „ist das gut?\" sondern „ist das trivial?\". Ein Modell, das immer die Mehrheitsklasse vorhersagt, erreicht 95%. 98% sind nur 3 Prozentpunkte darüber — je nach Klasse pro Fall vielleicht nur wenige zusätzlich richtig klassifizierte Beispiele. Fordern Sie ein: Confusion Matrix, Sensitivität und Spezifität pro Klasse, ROC-AUC (und ggf. Precision-Recall-Curve, die bei starkem Imbalance aussagekräftiger ist). Accuracy allein sagt bei imbalanced data nichts Verwertbares."
+  },
+  {
+    "num": "Q5.6",
+    "prompt_de": "Warum kann MC Dropout nur einen Teil der Unsicherheit erfassen?",
+    "answer_de": "MC Dropout schätzt vor allem epistemische Unsicherheit (die aus der Modellparameter-Unsicherheit). Aleatorische Unsicherheit (Datenrauschen) wird nicht direkt erfasst — dafür braucht es Erweiterungen, z. B. das Modellieren einer Ausgabeverteilung (Kendall & Gal, 2017: „What Uncertainties Do We Need in Bayesian Deep Learning?\").\n\n Zusätzlich: MC Dropout unterschätzt oft die Unsicherheit für Out-of-Distribution-Daten — das Netz ist sich fälschlich sicher, weil Dropout an derselben Modellsicht rüttelt, nicht an fundamentaler Unkenntnis der Datenverteilung. Deep Ensembles sind hier meist zuverlässiger."
+  },
+  {
+    "num": "Q5.7",
+    "prompt_de": "Berechnen Sie den Speicherbedarf eines 3D-CT-Volumens mit 512×512×300 Voxeln in float32.",
+    "answer_de": "512·512·300·4 Bytes = 314.572.800 Bytes ≈ 314 MB pro Volumen. Bei einem Batch von 2 sind das 628 MB — plus Aktivierungen im Netz (die pro Layer nochmal ähnlich viel Speicher brauchen).\n\n Praktische Konsequenz: Vollvolumen-3D-Training ist auf einer 24-GB-GPU meist unmöglich. Deshalb Patch-basiertes Training (z. B. 96×96×96-Patches) oder Sliding-Window-Inferenz. Das nnU-Net macht beides automatisch."
+  },
+  {
+    "num": "Q5.8",
+    "prompt_de": "Was ist der Unterschied zwischen einem Ensemble und einer Bagging-Vorhersage?",
+    "answer_de": "Bagging trainiert dasselbe Modell mehrfach auf verschiedenen Bootstrap-Samples derselben Daten. Ensembles im Deep-Learning-Sinn nutzen meist unterschiedliche Initialisierungen (Deep Ensembles), Architekturen oder Trainingsstrategien.\n\n In der Praxis: 5-Fold-Cross-Validation liefert nebenbei ein Ensemble von 5 Modellen — das nnU-Net nutzt genau das. Der Ensembling-Effekt allein bringt oft +1–3 Prozentpunkte Dice. Kostet aber 5× mehr Trainings- und Inferenzzeit."
+  },
+  {
+    "num": "Q5.9",
+    "prompt_de": "Was ist der wichtigste Unterschied zwischen einer retrospektiven und einer prospektiven klinischen Validierung?",
+    "answer_de": "Retrospektiv: Das Modell wird auf bereits vorhandenen, historischen Daten evaluiert. Selektionseffekte sind schwer auszuschließen (z. B. Cherry-Picking, unvollständige Datenerfassung, Metadaten-Leakage).\n\n Prospektiv: Das Modell läuft im echten klinischen Betrieb auf neu eingehenden Patienten. Alle Verzerrungen sind sichtbar — Domain Shift, Workflow-Integration, Radiologen-Interaktion. Wird typischerweise für CE/FDA-Zulassung verlangt.\n\n Beobachtung: Viele Publikationen mit „state of the art\" Ergebnissen retrospektiv scheitern prospektiv. Das ist keine Schwäche der Methodik, sondern des Studiendesigns — retrospektive Datensätze sind fast immer zu sauber, um die Realität abzubilden."
+  },
+  {
+    "num": "Q5.10",
+    "prompt_de": "In welchen Situationen ist Federated Learning nicht die richtige Antwort auf Datenschutzprobleme?",
+    "answer_de": "- Sehr kleine Institutionen: Wenn jede Klinik nur 50 Fälle hat, sind die lokalen Gradienten stark verrauscht — die Aggregation hilft wenig.\n\n - Stark heterogene Daten: Wenn Klinik A ausschließlich Pädiatrie und Klinik B ausschließlich Geriatrie macht, konvergiert FedAvg langsam oder gar nicht (Non-IID-Problem).\n\n - Wenn ein zentrales Model ohnehin nicht das Ziel ist: Manchmal ist ein pro Klinik individuell trainiertes Modell besser — „personalized federated learning\".\n\n - Bei rechtlichen Sonderfällen: Gradientenupdates können unter Umständen Trainingsdaten rekonstruieren („gradient leakage\") — dann braucht es zusätzlich Differential Privacy oder sichere Aggregation."
+  }
+]
