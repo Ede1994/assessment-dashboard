@@ -5,6 +5,7 @@ import path from "path";
 import { tutorQuestionsEn } from "./tutorQuestionsEn";
 import { ctQuestionsEn } from "./ctQuestionsEn";
 import { hashPassword } from "../src/lib/password";
+import { isMriHeavy } from "../src/lib/assignmentPresets";
 
 const dbUrl = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
 const relative = dbUrl.replace(/^file:/, "");
@@ -644,13 +645,6 @@ const categories: SeedCategory[] = [
     questions: [],
   },
 ];
-
-function isMriHeavy(title: string, tags: string, prompt: string) {
-  const blob = `${title} ${tags} ${prompt}`.toLowerCase();
-  return /mri|mrt|flair|ny[uú]l|bias field|2\.5d|t1-weighted|multi-sequence mri|skull-strip/.test(
-    blob,
-  );
-}
 
 async function main() {
   console.log("Seeding database...");

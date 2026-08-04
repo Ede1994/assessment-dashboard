@@ -9,10 +9,8 @@ Last updated: 2026-08-04
 ## Open
 
 ### Product / features
-- [ ] Trainer can assign by **category presets** in one click (CT-track, MRI-track, PyTorch-only) — partial: category +/- buttons exist; named presets would help
-- [ ] Student progress emails / export of submissions (CSV/PDF)
-- [ ] German UI locale toggle (content is English by design)
-- [ ] In-UI category editor (create/rename categories) — questions can be edited; categories still seeded
+- [ ] Student progress emails (CSV export done)
+- [ ] Optional: PDF export of submissions
 
 ### Engineering / polish
 - [ ] Migrate Next.js `middleware` → `proxy` (Next 16 deprecation warning)
@@ -28,6 +26,12 @@ Last updated: 2026-08-04
 ---
 
 ## Done
+
+### Assignment presets + student admin + CSV + categories (2026-08-04)
+- [x] Named assignment presets on `/trainer/assignments`: CT-track, MRI-track, PyTorch-only (`src/lib/assignmentPresets.ts`)
+- [x] Trainer user delete + password reset (`DELETE`/`PATCH` `/api/users/[id]`)
+- [x] CSV export of filtered submissions on `/trainer/submissions`
+- [x] In-UI category editor (`/trainer/categories` + POST/PUT/DELETE `/api/categories`)
 
 ### MC scoreboard + AI free-text assist (2026-08-04)
 - [x] Auto-grade MC on submit; student Correct/Incorrect; trainer MC scoreboard on overview

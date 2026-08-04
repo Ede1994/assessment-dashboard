@@ -29,6 +29,7 @@ Last updated: 2026-08-04
 | Task scoping | Per-student `QuestionAssignment` | e.g. CT track without MRI tasks |
 | Empty assignments | If a student has **0** assignments → show **full** bank | Avoid locking demos; curated sets use explicit assignments |
 | Question authoring | Trainer in-UI CRUD + seed bootstrap | Day-to-day edits without reseed |
+| Category authoring | Trainer in-UI CRUD + seed bootstrap | Same as questions |
 
 ---
 
@@ -54,10 +55,12 @@ Last updated: 2026-08-04
 /student/questions/[id]     → answer form; 403 if not assigned
 /trainer                    → overview
 /trainer/questions          → bank + ideal solutions
-/trainer/assignments        → pick questions per student
-/trainer/submissions        → student answer vs ideal solution
+/trainer/categories         → create / rename / delete empty categories
+/trainer/assignments        → pick questions per student (+ named presets)
+/trainer/submissions        → student answer vs ideal solution (+ CSV export)
+/trainer/users              → create / delete / reset password
 
-API: /api/auth/*, /api/questions, /api/submissions, /api/solutions (trainer), /api/assignments (trainer)
+API: /api/auth/*, /api/questions, /api/submissions, /api/solutions (trainer), /api/assignments (trainer), /api/categories, /api/users
 ```
 
 - Prisma client generated to `src/generated/prisma` (gitignored); `postinstall` / `prisma generate`.
@@ -72,7 +75,7 @@ API: /api/auth/*, /api/questions, /api/submissions, /api/solutions (trainer), /a
 2. **Tutor HTML** `~/Downloads/deep_learning_medizin_tutor.html` → 41 quiz FAQ items; **39** imported in English; **skipped duplicates:** Q1.6 (log_softmax / numerical stability), Q2.4 (anisotropic 3D CNN — overlaps existing anisotropic U-Net topic).
 3. Categories include: `pytorch`, `python`, `medical-data`, `ai-dl`, `dl-basics`, `ct-mri`, `dicom`, `governance`, `architecture`.
 
-MRI-heavy filter used for `student2` seed (regex-ish on title/tags/prompt): MRI, MRT, FLAIR, Nyúl, bias field, 2.5D, etc. — see `isMriHeavy()` in `prisma/seed.ts`.
+MRI-heavy filter used for `student2` seed and CT-track preset (regex-ish on title/tags/prompt): MRI, MRT, FLAIR, Nyúl, bias field, 2.5D, etc. — see `isMriHeavy()` in `src/lib/assignmentPresets.ts` (imported by seed).
 
 ---
 
@@ -87,6 +90,14 @@ MRI-heavy filter used for `student2` seed (regex-ish on title/tags/prompt): MRI,
 ---
 
 ## Session log
+
+### 2026-08-04 — Assignment presets + user admin + CSV + categories
+- User asked for next TODO product features after reading docs.
+- Presets: `src/lib/assignmentPresets.ts` (shared `isMriHeavy` with seed); CT-track / MRI-track / PyTorch-only buttons on Assign tasks (client fills selection; still Save via PUT).
+- Users: trainer `DELETE` / `PATCH` `/api/users/[id]` (cannot delete self or last trainer; reset password without current password).
+- Submissions: client CSV export of currently filtered rows.
+- Categories: POST `/api/categories`, PUT/DELETE `/api/categories/[id]`; UI `/trainer/categories`; delete blocked when questions remain.
+- Nav: Categories link in `TrainerNav`.
 
 ### 2026-08-04 — MC auto-grade + Open WebUI AI assist
 - MC: grade from `Choice.isCorrect` on submit; student sees correct/incorrect; trainer overview scoreboard (`mcCorrect`/`mcAnswered`/`mcScorePct`).

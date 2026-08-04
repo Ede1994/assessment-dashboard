@@ -3,6 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { TrainerNav } from "@/components/TrainerNav";
+import {
+  ASSIGNMENT_PRESETS,
+  questionIdsForPreset,
+} from "@/lib/assignmentPresets";
 import { categoryColors } from "@/lib/colors";
 
 type Student = {
@@ -24,6 +28,7 @@ type Category = {
 type QuestionRow = {
   id: string;
   title: string;
+  prompt: string;
   roundLabel: string;
   tags: string;
   type: string;
@@ -142,6 +147,14 @@ export default function TrainerAssignmentsPage() {
     });
   }
 
+  function applyPreset(presetId: string) {
+    const ids = questionIdsForPreset(presetId, questions);
+    if (!ids) return;
+    setSelected(new Set(ids));
+    setMessage("");
+    setError("");
+  }
+
   async function save() {
     if (!selectedStudentId) return;
     setSaving(true);
@@ -188,8 +201,9 @@ export default function TrainerAssignmentsPage() {
             Per-student task selection
           </h2>
           <p className="text-xs text-slate-400 max-w-3xl">
-            Choose which questions each student must answer. Example: a CT-track
-            student can omit MRI-only tasks. Students only see their assigned set.
+            Choose which questions each student must answer. Use presets
+            (CT-track, MRI-track, PyTorch-only) or category +/- buttons, then
+            Save. Students only see their assigned set.
           </p>
         </section>
 
@@ -253,7 +267,20 @@ export default function TrainerAssignmentsPage() {
               />
             </div>
 
-            <div className="flex flex-wrap gap-2 text-xs">
+            <div className="flex flex-wrap gap-2 text-xs items-center">
+              <span className="text-slate-500 mr-1">Presets:</span>
+              {ASSIGNMENT_PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => applyPreset(p.id)}
+                  title={p.description}
+                  className="px-3 py-1.5 rounded-lg bg-sky-950/60 border border-sky-500/30 text-sky-300 hover:bg-sky-900/50"
+                >
+                  {p.label}
+                </button>
+              ))}
+              <span className="text-slate-700 mx-1">|</span>
               <button
                 type="button"
                 onClick={() => selectVisible(true)}

@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         title: true,
+        prompt: true,
         roundLabel: true,
         tags: true,
         type: true,

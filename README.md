@@ -116,7 +116,7 @@ If only app code changed (no Prisma/seed edits), you do **not** need to reseed �
 ## Roles
 
 - **Student:** assigned tasks only, submit/update answers, change own password. Solutions never shown.
-- **Trainer:** question bank CRUD, assign tasks, review submissions, provision users.
+- **Trainer:** question bank CRUD, category editor, assign tasks (presets), review submissions (CSV export), provision users (create / delete / reset password).
 
 ## Question bank editor
 
@@ -132,7 +132,11 @@ Seed data still bootstraps categories and the initial bank via `npm run db:seed`
 
 ## Assignments
 
-Trainers open **Assign tasks** (`/trainer/assignments`), pick a student, then select individual questions or whole categories. Saving replaces that student’s assignment set. Students with no assignments temporarily see the full bank.
+Trainers open **Assign tasks** (`/trainer/assignments`), pick a student, then select individual questions, whole categories (+/−), or named presets (**CT-track**, **MRI-track**, **PyTorch-only**). Saving replaces that student’s assignment set. Students with no assignments temporarily see the full bank.
+
+## Categories
+
+Trainers manage categories in the UI at `/trainer/categories` (create / rename / recolor / delete when empty). Questions still pick a category in the question editor.
 
 ## Question bank content
 

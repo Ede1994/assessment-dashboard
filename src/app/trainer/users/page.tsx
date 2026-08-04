@@ -24,6 +24,9 @@ export default function TrainerUsersPage() {
   const [role, setRole] = useState<"STUDENT" | "TRAINER">("STUDENT");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [resetId, setResetId] = useState<string | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -76,6 +79,59 @@ export default function TrainerUsersPage() {
       setError("Network error");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function onDelete(user: UserRow) {
+    const ok = window.confirm(
+      `Delete ${user.displayName} (@${user.username})? Their submissions and assignments will be removed.`,
+    );
+    if (!ok) return;
+    setBusyId(user.id);
+    setError("");
+    setMessage("");
+    try {
+      const res = await fetch(`/api/users/${user.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Could not delete user");
+        return;
+      }
+      setMessage(`Deleted @${user.username}.`);
+      if (resetId === user.id) {
+        setResetId(null);
+        setResetPassword("");
+      }
+      await load();
+    } catch {
+      setError("Network error");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function onResetPassword(user: UserRow) {
+    setBusyId(user.id);
+    setError("");
+    setMessage("");
+    try {
+      const res = await fetch(`/api/users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: resetPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Could not reset password");
+        return;
+      }
+      setMessage(`Password reset for @${user.username}.`);
+      setResetId(null);
+      setResetPassword("");
+    } catch {
+      setError("Network error");
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -160,29 +216,91 @@ export default function TrainerUsersPage() {
             </div>
             <div className="divide-y divide-slate-800">
               {users.map((u) => (
-                <div
-                  key={u.id}
-                  className="px-5 py-3 flex flex-wrap items-center justify-between gap-2"
-                >
-                  <div>
-                    <p className="text-sm text-slate-100">
-                      {u.displayName}{" "}
-                      <span className="text-slate-500">@{u.username}</span>
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {u._count.assignments} assigned · {u._count.submissions}{" "}
-                      submissions
-                    </p>
+                <div key={u.id} className="px-5 py-3 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm text-slate-100">
+                        {u.displayName}{" "}
+                        <span className="text-slate-500">@{u.username}</span>
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {u._count.assignments} assigned · {u._count.submissions}{" "}
+                        submissions
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`text-[10px] px-2 py-0.5 rounded-full border ${
+                          u.role === "TRAINER"
+                            ? "border-emerald-500/30 text-emerald-400"
+                            : "border-sky-500/30 text-sky-400"
+                        }`}
+                      >
+                        {u.role}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={busyId === u.id}
+                        onClick={() => {
+                          setResetId(resetId === u.id ? null : u.id);
+                          setResetPassword("");
+                          setError("");
+                        }}
+                        className="text-xs px-2.5 py-1 rounded-lg border border-slate-700 text-slate-300 hover:border-sky-500/40 hover:text-sky-300 disabled:opacity-60"
+                      >
+                        Reset password
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busyId === u.id}
+                        onClick={() => onDelete(u)}
+                        className="text-xs px-2.5 py-1 rounded-lg border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 disabled:opacity-60"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
-                  <span
-                    className={`text-[10px] px-2 py-0.5 rounded-full border ${
-                      u.role === "TRAINER"
-                        ? "border-emerald-500/30 text-emerald-400"
-                        : "border-sky-500/30 text-sky-400"
-                    }`}
-                  >
-                    {u.role}
-                  </span>
+                  {resetId === u.id ? (
+                    <form
+                      className="flex flex-wrap items-end gap-2 bg-slate-950 border border-slate-800 rounded-xl p-3"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        void onResetPassword(u);
+                      }}
+                    >
+                      <label className="space-y-1 block flex-1 min-w-[12rem]">
+                        <span className="text-xs text-slate-400">
+                          New password for @{u.username}
+                        </span>
+                        <input
+                          type="password"
+                          value={resetPassword}
+                          onChange={(e) => setResetPassword(e.target.value)}
+                          className={inputClass}
+                          required
+                          minLength={8}
+                          autoFocus
+                        />
+                      </label>
+                      <button
+                        type="submit"
+                        disabled={busyId === u.id}
+                        className="px-3 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 disabled:opacity-60 text-white text-xs"
+                      >
+                        {busyId === u.id ? "Saving…" : "Save password"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setResetId(null);
+                          setResetPassword("");
+                        }}
+                        className="px-3 py-2 rounded-lg border border-slate-700 text-slate-400 text-xs"
+                      >
+                        Cancel
+                      </button>
+                    </form>
+                  ) : null}
                 </div>
               ))}
             </div>

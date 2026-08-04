@@ -106,6 +106,66 @@ export default function TrainerSubmissionsPage() {
     }
   }
 
+  function exportCsv() {
+    const rows = filtered;
+    const escape = (value: string) => {
+      if (/[",\n\r]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
+      return value;
+    };
+    const header = [
+      "student_username",
+      "student_display_name",
+      "category",
+      "question_title",
+      "question_type",
+      "answer",
+      "mc_correct",
+      "updated_at",
+      "ai_feedback",
+    ];
+    const lines = [header.join(",")];
+    for (const s of rows) {
+      const answer =
+        s.question.type === "FREE_TEXT"
+          ? s.textAnswer ?? ""
+          : (s.selectedChoice?.label ?? "");
+      const mcCorrect =
+        s.question.type === "MULTIPLE_CHOICE" && s.selectedChoice
+          ? s.selectedChoice.isCorrect
+            ? "true"
+            : "false"
+          : "";
+      lines.push(
+        [
+          s.user.username,
+          s.user.displayName,
+          s.question.category.name,
+          s.question.title,
+          s.question.type,
+          answer,
+          mcCorrect,
+          s.updatedAt,
+          s.aiFeedback ?? "",
+        ]
+          .map((cell) => escape(String(cell)))
+          .join(","),
+      );
+    }
+    const blob = new Blob([lines.join("\n")], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download =
+      studentFilter === "all"
+        ? `submissions-${stamp}.csv`
+        : `submissions-${stamp}-filtered.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       <AppHeader
@@ -117,34 +177,46 @@ export default function TrainerSubmissionsPage() {
       <main className="max-w-7xl mx-auto px-4 lg:px-8 py-8 flex-1 w-full space-y-8">
         <TrainerNav active="submissions" />
 
-        <div className="flex flex-wrap gap-2 items-center">
-          <span className="text-xs text-slate-500 mr-2">Filter student:</span>
-          <button
-            type="button"
-            onClick={() => setStudentFilter("all")}
-            className={`px-3 py-1.5 rounded-lg text-xs border ${
-              studentFilter === "all"
-                ? "bg-sky-600 text-white border-sky-600"
-                : "bg-slate-900 text-slate-400 border-slate-800"
-            }`}
-          >
-            All
-          </button>
-          {students.map((s) => (
+        <div className="flex flex-wrap gap-2 items-center justify-between">
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs text-slate-500 mr-2">Filter student:</span>
             <button
-              key={s.id}
               type="button"
-              onClick={() => setStudentFilter(s.id)}
+              onClick={() => setStudentFilter("all")}
               className={`px-3 py-1.5 rounded-lg text-xs border ${
-                studentFilter === s.id
+                studentFilter === "all"
                   ? "bg-sky-600 text-white border-sky-600"
                   : "bg-slate-900 text-slate-400 border-slate-800"
               }`}
             >
-              {s.displayName} ({s.answered}/{s.total}
-              {s.mcScorePct != null ? ` · MC ${s.mcScorePct}%` : ""})
+              All
             </button>
-          ))}
+            {students.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setStudentFilter(s.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs border ${
+                  studentFilter === s.id
+                    ? "bg-sky-600 text-white border-sky-600"
+                    : "bg-slate-900 text-slate-400 border-slate-800"
+                }`}
+              >
+                {s.displayName} ({s.answered}/{s.total}
+                {s.mcScorePct != null ? ` · MC ${s.mcScorePct}%` : ""})
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={exportCsv}
+            disabled={loading || filtered.length === 0}
+            className="px-3 py-1.5 rounded-lg text-xs border border-slate-700 text-slate-300 hover:border-sky-500/40 hover:text-sky-300 disabled:opacity-40"
+            title="Download currently filtered submissions as CSV"
+          >
+            <i className="fa-solid fa-download mr-1.5" />
+            Export CSV
+          </button>
         </div>
 
         {aiError ? (

@@ -10,6 +10,7 @@ export function TrainerNav({
     | "questions"
     | "submissions"
     | "assignments"
+    | "categories"
     | "users";
 }) {
   return (
@@ -25,6 +26,12 @@ export function TrainerNav({
         label="Question bank"
         icon="fa-book"
         active={active === "questions"}
+      />
+      <NavLink
+        href="/trainer/categories"
+        label="Categories"
+        icon="fa-tags"
+        active={active === "categories"}
       />
       <NavLink
         href="/trainer/assignments"
