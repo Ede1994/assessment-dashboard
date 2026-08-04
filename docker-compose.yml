@@ -1,0 +1,17 @@
+services:
+  app:
+    build: .
+    image: assessment-dashboard:local
+    ports:
+      - "3000:3000"
+    environment:
+      # Override SESSION_SECRET for any shared/deployed use.
+      SESSION_SECRET: assessment-dashboard-docker-secret-change-me-32chars
+      DATABASE_URL: file:./prisma/dev.db
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+    restart: unless-stopped
+    # Optional: persist SQLite across recreations (bind-mount a host file):
+    # volumes:
+    #   - ./data/dev.db:/app/prisma/dev.db

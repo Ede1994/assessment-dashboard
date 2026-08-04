@@ -88,6 +88,11 @@ MRI-heavy filter used for `student2` seed (regex-ish on title/tags/prompt): MRI,
 
 ## Session log
 
+### 2026-08-04 — Docker image + API tests
+- Multi-stage `Dockerfile` (Debian Bookworm slim): Node 22, npm, sqlite3 CLI, build-essential/python3; `docker-compose.yml`; README Docker section.
+- `npm test` → `scripts/run-tests.sh` seeds `prisma/test.db`, starts `next start` on :3010 with `SESSION_COOKIE_SECURE=false`, runs `tests/api.test.ts` (auth / assignment filter / MC submit).
+- Ubuntu native install confirmed working by user.
+
 ### 2026-08-04 — Trainer password + CT quiz import
 - Default seeded trainer password is now `NRAD2026` (login demo button + README updated).
 - Imported 8 CT questions/solutions from `CT_Fragen.docx` / `Lösung CT_Fragen.docx` into `prisma/ctQuestionsEn.ts` (ct-mri category); FBP figure at `public/seed-assets/ct/fbp-reconstructions.png`.

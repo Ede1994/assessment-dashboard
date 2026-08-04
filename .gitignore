@@ -47,3 +47,5 @@ next-env.d.ts
 *.db
 *.db-journal
 prisma/dev.db
+prisma/test.db
+prisma/test.db-journal

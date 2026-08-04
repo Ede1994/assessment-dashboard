@@ -6,3 +6,9 @@ node_modules
 *.db-journal
 .DS_Store
 agent-transcripts
+.agents
+.claude
+.windsurf
+skills-lock.json
+coverage
+tests

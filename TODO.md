@@ -9,18 +9,15 @@ Last updated: 2026-08-04
 ## Open
 
 ### Product / features
-- [ ] Automated grading for multiple-choice (scoreboard); optional AI-assist for free-text review
-- [ ] File uploads (e.g. notebooks, code attachments) on submissions
-- [ ] Multi-tenant / class / course model (orgs, cohorts)
+- [ ] Automated grading for multiple-choice (scoreboard)
+- [ ] AI-assist for free-text review
 - [ ] Trainer can assign by **category presets** in one click (CT-track, MRI-track, PyTorch-only) — partial: category +/- buttons exist; named presets would help
 - [ ] Student progress emails / export of submissions (CSV/PDF)
 - [ ] German UI locale toggle (content is English by design)
 - [ ] In-UI category editor (create/rename categories) — questions can be edited; categories still seeded
 
 ### Engineering / polish
-- [ ] Linux install path verified on a real Debian/Ubuntu host (prebuilds + README; Docker image optional)
 - [ ] Migrate Next.js `middleware` → `proxy` (Next 16 deprecation warning)
-- [ ] Add minimal automated tests (auth + assignment filter + MC submit)
 - [ ] Ensure Font Awesome webfonts resolve reliably in production (CSS import path)
 - [ ] CI: `prisma generate` + `db push`/`migrate` + build on PR
 - [ ] Rate-limit login/register endpoints
@@ -34,6 +31,11 @@ Last updated: 2026-08-04
 
 ## Done
 
+### Docker + API tests (2026-08-04)
+- [x] Multi-stage Debian Bookworm Docker image (`node` 22, `npm`, `sqlite3`, build tools) + `docker compose`
+- [x] Minimal API tests via `npm test`: auth, assignment filter (`student2`), MC submit
+- [x] User confirmed native Ubuntu install workflow works
+
 ### CT quiz + trainer password (2026-08-04)
 - [x] Seeded trainer password `NRAD2026`
 - [x] Import CT_Fragen / Lösung CT_Fragen into `ctQuestionsEn.ts` + FBP figure asset
@@ -42,6 +44,7 @@ Last updated: 2026-08-04
 ### Linux install hardening (2026-08-04)
 - [x] Force single `better-sqlite3@13` via npm overrides (drop nested v12 node-gyp path)
 - [x] `.npmrc`, `.nvmrc`, `engines`, `check:native` / `setup` scripts, README Debian/Ubuntu section, optional Dockerfile
+- [x] Linux install path verified on a real Debian/Ubuntu host
 
 ### Auth + question editor (2026-08-04)
 - [x] Real auth: bcrypt `passwordHash`, student self-register, change password, trainer user provisioning

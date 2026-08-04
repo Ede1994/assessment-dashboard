@@ -27,7 +27,12 @@ export const sessionOptions: SessionOptions = {
   password: resolveSessionPassword(),
   cookieName: "assessment_session",
   cookieOptions: {
-    secure: process.env.NODE_ENV === "production",
+    secure:
+      process.env.SESSION_COOKIE_SECURE === "true"
+        ? true
+        : process.env.SESSION_COOKIE_SECURE === "false"
+          ? false
+          : process.env.NODE_ENV === "production",
     httpOnly: true,
     sameSite: "lax",
     maxAge: 60 * 60 * 24 * 7,

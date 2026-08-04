@@ -147,7 +147,43 @@ npm run db:seed      # reset users, questions, and demo assignments
 npm run db:reset     # force-reset DB then seed
 npm run build        # production build
 npm start            # production server (after build); also uses port 3000 by default
+npm test             # API integration tests (auth, assignment filter, MC submit)
 ```
+
+## Docker (Debian/Ubuntu host)
+
+The image is based on **Debian Bookworm** and includes `node` (22), `npm`, `sqlite3`, plus `build-essential` / `python3` as a fallback for native modules.
+
+```bash
+# Build
+docker build -t assessment-dashboard .
+
+# Run (http://localhost:3000)
+docker run --rm -p 3000:3000 assessment-dashboard
+
+# Or Compose
+docker compose up --build
+```
+
+Override `SESSION_SECRET` in real deployments:
+
+```bash
+docker run --rm -p 3000:3000 \
+  -e SESSION_SECRET='replace-with-a-long-random-secret-32+' \
+  assessment-dashboard
+```
+
+The image ships a seeded SQLite DB. To persist answers across container recreations, bind-mount the DB file (see comment in `docker-compose.yml`).
+
+## Automated tests
+
+`npm test` seeds `prisma/test.db`, starts the production server on port **3010**, and runs Node’s built-in test runner against:
+
+- auth (invalid login + demo student/trainer)
+- assignment filter (`student2` CT-focused subset)
+- multiple-choice submit (+ unauthenticated 401)
+
+Requires a prior or automatic `npm run build` (creates `.next` if missing).
 
 ## Stopping the application and background processes
 
