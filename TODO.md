@@ -18,6 +18,7 @@ Last updated: 2026-08-04
 - [ ] In-UI category editor (create/rename categories) — questions can be edited; categories still seeded
 
 ### Engineering / polish
+- [ ] Linux install path verified on a real Debian/Ubuntu host (prebuilds + README; Docker image optional)
 - [ ] Migrate Next.js `middleware` → `proxy` (Next 16 deprecation warning)
 - [ ] Add minimal automated tests (auth + assignment filter + MC submit)
 - [ ] Ensure Font Awesome webfonts resolve reliably in production (CSS import path)
@@ -32,6 +33,10 @@ Last updated: 2026-08-04
 ---
 
 ## Done
+
+### Linux install hardening (2026-08-04)
+- [x] Force single `better-sqlite3@13` via npm overrides (drop nested v12 node-gyp path)
+- [x] `.npmrc`, `.nvmrc`, `engines`, `check:native` / `setup` scripts, README Debian/Ubuntu section, optional Dockerfile
 
 ### Auth + question editor (2026-08-04)
 - [x] Real auth: bcrypt `passwordHash`, student self-register, change password, trainer user provisioning

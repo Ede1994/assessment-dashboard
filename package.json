@@ -2,6 +2,10 @@
   "name": "assessment-dashboard",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0",
+    "npm": ">=10"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
@@ -10,7 +14,9 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "check:native": "node scripts/check-native.mjs",
+    "setup": "npm run check:native && npm run db:push && npm run db:seed"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -44,8 +50,10 @@
     "tsx": "^4.23.5",
     "typescript": "^5"
   },
+  "overrides": {
+    "better-sqlite3": "$better-sqlite3"
+  },
   "allowScripts": {
-    "better-sqlite3@12.11.1": true,
     "better-sqlite3@13.0.2": true,
     "@prisma/engines@7.9.1": true,
     "esbuild@0.28.1": true,

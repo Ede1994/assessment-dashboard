@@ -9,13 +9,50 @@ Prototype assessment dashboard for medical data engineering students. Dark UI in
 - iron-session (signed httpOnly cookies) + **bcrypt** password hashes
 - KaTeX for inline math in prompts/solutions
 
+## Requirements
+
+- **Node.js 20+** (22 LTS recommended; see `.nvmrc`)
+- **npm 10+**
+- macOS, Windows, or **Debian/Ubuntu Linux** (x64 or arm64)
+
+### Debian / Ubuntu system packages
+
+SQLite is provided by `better-sqlite3`, which ships prebuilt binaries for common Linux platforms. You usually do **not** need compilers. If `npm install` still fails while building native modules, install the toolchain once:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y build-essential python3
+```
+
+Recommended Node install (via [nvm](https://github.com/nvm-sh/nvm)):
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+# restart the shell, then:
+nvm install
+nvm use
+node -v   # should be v22.x
+```
+
+Avoid the very old `nodejs` package from default Ubuntu apt repos when possible.
+
 ## Setup
+
+```bash
+npm install
+cp .env.example .env
+npm run setup          # checks native SQLite + db push + seed
+npm run dev
+```
+
+Equivalent manual steps:
 
 ```bash
 npm install
 cp .env.example .env
 npx prisma db push
 npm run db:seed
+npm run check:native   # optional sanity check
 npm run dev
 ```
 
@@ -23,6 +60,14 @@ Open [http://localhost:3000](http://localhost:3000).
 
 Set `SESSION_SECRET` in `.env` to a random string of **at least 32 characters** (required in production).
 
+### Troubleshooting `npm install` on Linux
+
+| Symptom | Fix |
+|--------|-----|
+| `gyp ERR!` / `Python` / `make` / `g++` errors | `sudo apt-get install -y build-essential python3` then `rm -rf node_modules && npm install` |
+| `GLIBC_… not found` | Use a newer distro (Ubuntu 22.04+ / Debian 12+) or rebuild: `npm rebuild better-sqlite3` after installing build tools |
+| Scripts skipped / Prisma engines missing | Ensure project `.npmrc` is present (`ignore-scripts=false`) and re-run `npm install` |
+| Wrong Node version | `nvm install && nvm use` (Node 20 or 22) |
 ## Authentication
 
 Passwords are **never** stored in plaintext. Login verifies against bcrypt hashes. Sessions use encrypted iron-session cookies.

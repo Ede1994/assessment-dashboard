@@ -40,7 +40,8 @@ Last updated: 2026-08-04
 | `student2` | `student2` | STUDENT | CT-focused: MRI-heavy titles/tags filtered out (~61) |
 | `trainer` | `trainer` | TRAINER | Full bank, assignments UI, submissions |
 
-Env: `DATABASE_URL=file:./prisma/dev.db`, `SESSION_SECRET=…` (see `.env.example`). SQLite file lives under `prisma/dev.db` (not repo root).
+- Env: `DATABASE_URL=file:./prisma/dev.db`, `SESSION_SECRET=…` (see `.env.example`). SQLite file lives under `prisma/dev.db` (not repo root).
+- Cross-platform: one `better-sqlite3@13` via package `overrides` (no nested v12); Linux prebuilds included. Fallback compilers: `build-essential` + `python3`.
 
 ---
 
@@ -85,6 +86,11 @@ MRI-heavy filter used for `student2` seed (regex-ish on title/tags/prompt): MRI,
 ---
 
 ## Session log
+
+### 2026-08-04 — Linux / Debian-Ubuntu install compatibility
+- `npm install` failures on Linux were caused by a **nested** `better-sqlite3@12` (from `@prisma/adapter-better-sqlite3`) that runs `prebuild-install || node-gyp rebuild` and needs `build-essential` + Python when prebuilds miss.
+- Fix: npm `overrides` force a single `better-sqlite3@13` (ships `linux-x64` / `linux-arm64` prebuilds, no install compile script). Added `.npmrc`, `.nvmrc` (22), `engines`, `npm run check:native` / `npm run setup`, README Linux section, optional `Dockerfile`.
+- On Debian/Ubuntu: prefer Node 22 via nvm; only install `build-essential python3` if native load still fails.
 
 ### 2026-08-04 — Real auth + question bank editor
 - User asked for in-UI question CRUD and real authentication (no plaintext passwords).
