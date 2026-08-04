@@ -1,12 +1,16 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+
+const inputClass =
+  "w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState("student");
-  const [password, setPassword] = useState("student");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -58,8 +62,8 @@ export default function LoginPage() {
             Student Assessment Platform
           </h1>
           <p className="text-sm text-slate-400">
-            Medical data engineering, CT/MRI, PyTorch, and AI assessment tasks.
-            Mock logins for prototype use.
+            Sign in with your account. Passwords are stored as bcrypt hashes —
+            never plaintext.
           </p>
         </div>
 
@@ -72,8 +76,9 @@ export default function LoginPage() {
             <input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500"
+              className={inputClass}
               autoComplete="username"
+              required
             />
           </div>
           <div className="space-y-1.5">
@@ -82,8 +87,9 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500"
+              className={inputClass}
               autoComplete="current-password"
+              required
             />
           </div>
 
@@ -107,24 +113,29 @@ export default function LoginPage() {
               onClick={() => fill("student")}
               className="text-xs px-3 py-2 rounded-lg bg-slate-950 text-slate-300 border border-slate-800 hover:border-sky-500/40 transition"
             >
-              Fill student
+              Demo student
             </button>
             <button
               type="button"
               onClick={() => fill("trainer")}
               className="text-xs px-3 py-2 rounded-lg bg-slate-950 text-slate-300 border border-slate-800 hover:border-emerald-500/40 transition"
             >
-              Fill trainer
+              Demo trainer
             </button>
           </div>
         </form>
 
-        <div className="text-xs text-slate-500 text-center space-y-1">
+        <p className="text-xs text-slate-500 text-center">
+          New student?{" "}
+          <Link href="/register" className="text-sky-400 hover:text-sky-300">
+            Create an account
+          </Link>
+        </p>
+        <div className="text-xs text-slate-600 text-center space-y-1">
           <p>
-            Student: <code className="text-slate-400">student / student</code>
-          </p>
-          <p>
-            Trainer: <code className="text-slate-400">trainer / trainer</code>
+            Seeded demos (hashed):{" "}
+            <code className="text-slate-400">student / student</code>,{" "}
+            <code className="text-slate-400">trainer / trainer</code>
           </p>
         </div>
       </div>

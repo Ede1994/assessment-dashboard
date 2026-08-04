@@ -3,6 +3,7 @@ import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaClient, QuestionType, Role } from "../src/generated/prisma/client";
 import path from "path";
 import { tutorQuestionsEn } from "./tutorQuestionsEn";
+import { hashPassword } from "../src/lib/password";
 
 const dbUrl = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
 const relative = dbUrl.replace(/^file:/, "");
@@ -684,7 +685,7 @@ async function main() {
   const student = await prisma.user.create({
     data: {
       username: "student",
-      password: "student",
+      passwordHash: await hashPassword("student"),
       role: Role.STUDENT,
       displayName: "Demo Student (full track)",
     },
@@ -692,7 +693,7 @@ async function main() {
   const student2 = await prisma.user.create({
     data: {
       username: "student2",
-      password: "student2",
+      passwordHash: await hashPassword("student2"),
       role: Role.STUDENT,
       displayName: "Demo Student 2 (CT-focused)",
     },
@@ -700,7 +701,7 @@ async function main() {
   await prisma.user.create({
     data: {
       username: "trainer",
-      password: "trainer",
+      passwordHash: await hashPassword("trainer"),
       role: Role.TRAINER,
       displayName: "Demo Trainer",
     },

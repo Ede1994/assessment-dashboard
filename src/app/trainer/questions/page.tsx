@@ -29,17 +29,21 @@ export default function TrainerQuestionsPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function load() {
+    const res = await fetch("/api/solutions");
+    if (!res.ok) throw new Error("Failed to load solutions");
+    const data = await res.json();
+    setCategories(data.categories);
+    setQuestions(data.questions);
+  }
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/solutions");
-        if (!res.ok) throw new Error("Failed to load solutions");
-        const data = await res.json();
-        if (cancelled) return;
-        setCategories(data.categories);
-        setQuestions(data.questions);
+        await load();
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Error");
       } finally {
@@ -50,6 +54,28 @@ export default function TrainerQuestionsPage() {
       cancelled = true;
     };
   }, []);
+
+  async function deleteQuestion(id: string, title: string) {
+    if (
+      !window.confirm(
+        `Delete question “${title}”? This also removes its solution, choices, assignments, and submissions.`,
+      )
+    ) {
+      return;
+    }
+    setDeletingId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/questions/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Delete failed");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -104,12 +130,21 @@ export default function TrainerQuestionsPage() {
               </button>
             ))}
           </div>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search…"
-            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-sm w-full sm:w-64 focus:outline-none focus:border-sky-500"
-          />
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search…"
+              className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-sm flex-1 sm:w-56 focus:outline-none focus:border-sky-500"
+            />
+            <Link
+              href="/trainer/questions/new"
+              className="text-xs px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white whitespace-nowrap"
+            >
+              <i className="fa-solid fa-plus mr-1.5" />
+              New question
+            </Link>
+          </div>
         </div>
 
         {loading ? (
@@ -137,10 +172,26 @@ export default function TrainerQuestionsPage() {
                       </span>
                       <h3 className="text-base font-bold text-slate-100">{q.title}</h3>
                     </div>
-                    <span className="text-xs text-slate-500">
-                      {q._count.submissions} submission
-                      {q._count.submissions === 1 ? "" : "s"}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500">
+                        {q._count.submissions} submission
+                        {q._count.submissions === 1 ? "" : "s"}
+                      </span>
+                      <Link
+                        href={`/trainer/questions/${q.id}/edit`}
+                        className="text-xs px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 hover:border-sky-500/40"
+                      >
+                        Edit
+                      </Link>
+                      <button
+                        type="button"
+                        disabled={deletingId === q.id}
+                        onClick={() => deleteQuestion(q.id, q.title)}
+                        className="text-xs px-2.5 py-1 rounded-lg bg-slate-950 border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 disabled:opacity-50"
+                      >
+                        {deletingId === q.id ? "…" : "Delete"}
+                      </button>
+                    </div>
                   </div>
 
                   <div className="text-sm text-slate-300">

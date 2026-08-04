@@ -20,7 +20,7 @@ enum QuestionType {
 model User {
   id           String               @id @default(cuid())
   username     String               @unique
-  password     String
+  passwordHash String
   role         Role
   displayName  String
   submissions  Submission[]

@@ -1,12 +1,12 @@
 # Student Assessment Platform
 
-Prototype assessment dashboard for medical data engineering students. Dark UI inspired by an interview-prep template, with mock student/trainer logins, SQLite-backed questions/solutions, and mixed free-text / multiple-choice tasks (Python, PyTorch, CT/MRI, DICOM, AI/DL).
+Prototype assessment dashboard for medical data engineering students. Dark UI inspired by an interview-prep template, with bcrypt-backed authentication, SQLite question bank (editable in-UI), per-student task assignment, and mixed free-text / multiple-choice tasks (Python, PyTorch, CT/MRI, DICOM, AI/DL).
 
 ## Stack
 
 - Next.js (App Router) + TypeScript + Tailwind CSS
 - Prisma + SQLite (`better-sqlite3` adapter)
-- iron-session (cookie mock auth)
+- iron-session (signed httpOnly cookies) + **bcrypt** password hashes
 - KaTeX for inline math in prompts/solutions
 
 ## Setup
@@ -21,24 +21,53 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Mock logins
+Set `SESSION_SECRET` in `.env` to a random string of **at least 32 characters** (required in production).
+
+## Authentication
+
+Passwords are **never** stored in plaintext. Login verifies against bcrypt hashes. Sessions use encrypted iron-session cookies.
+
+| Action | Who | Where |
+|--------|-----|--------|
+| Sign in | Anyone with an account | `/login` |
+| Self-register (student) | Public | `/register` (min 8-char password) |
+| Change password | Logged-in user | `/account` |
+| Create student/trainer | Trainer | `/trainer/users` |
+
+### Demo seed accounts (hashed in DB)
 
 | Role    | Username   | Password   | Notes |
 |---------|------------|------------|-------|
 | Student | `student`  | `student`  | Full assigned curriculum |
 | Student | `student2` | `student2` | CT-focused assignment (MRI-heavy tasks omitted) |
-| Trainer | `trainer`  | `trainer`  | Review solutions, assign tasks, view answers |
+| Trainer | `trainer`  | `trainer`  | Full trainer tools |
 
-- **Student:** browse assigned tasks only, submit/update answers. Solutions are never shown.
-- **Trainer:** overview, full answer key, **Assign tasks** per student, side-by-side submissions vs solutions.
+Demo passwords are short for convenience; **new** registrations and password changes require ≥8 characters.
+
+## Roles
+
+- **Student:** assigned tasks only, submit/update answers, change own password. Solutions never shown.
+- **Trainer:** question bank CRUD, assign tasks, review submissions, provision users.
+
+## Question bank editor
+
+Trainers manage the bank in the UI (no seed edit required for day-to-day changes):
+
+- **New:** `/trainer/questions/new`
+- **Edit:** `/trainer/questions/[id]/edit` (or Edit on each card)
+- **Delete:** Delete on each card (removes solution, choices, assignments, submissions for that question)
+
+Each question stores prompt, optional code snippet, type (free text / MC + choices), and trainer-only ideal answer / explanation / code solution.
+
+Seed data still bootstraps categories and the initial bank via `npm run db:seed`.
 
 ## Assignments
 
-Trainers open **Assign tasks** (`/trainer/assignments`), pick a student, then select individual questions or whole categories (e.g. all CT & DICOM, none of the MRI-only items). Saving replaces that student’s assignment set. Students with no assignments temporarily see the full bank.
+Trainers open **Assign tasks** (`/trainer/assignments`), pick a student, then select individual questions or whole categories. Saving replaces that student’s assignment set. Students with no assignments temporarily see the full bank.
 
-## Question bank
+## Question bank content
 
-Seeded from the medical interview-prep template plus the Deep Learning in Medical Imaging tutor FAQ (English, near-duplicates skipped). Categories: PyTorch, Python, medical data, AI/DL, DL fundamentals, CT & MRI, DICOM, governance/MDR, U-Net architectures. Edit `prisma/seed.ts` / `prisma/tutorQuestionsEn.ts` and run `npm run db:seed`.
+Seeded from the medical interview-prep template plus the Deep Learning in Medical Imaging tutor FAQ (English, near-duplicates skipped). Categories: PyTorch, Python, medical data, AI/DL, DL fundamentals, CT & MRI, DICOM, governance/MDR, U-Net architectures.
 
 ## Useful scripts
 

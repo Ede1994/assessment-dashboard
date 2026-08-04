@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export function AppHeader({
@@ -38,14 +39,23 @@ export function AppHeader({
             <p className="text-xs text-slate-400">{subtitle}</p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={logout}
-          className="text-xs px-3 py-1.5 rounded-lg bg-slate-950 text-slate-400 hover:text-rose-300 border border-slate-800 transition"
-        >
-          <i className="fa-solid fa-right-from-bracket mr-1.5" />
-          Log out
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/account"
+            className="text-xs px-3 py-1.5 rounded-lg bg-slate-950 text-slate-400 hover:text-sky-300 border border-slate-800 transition"
+          >
+            <i className="fa-solid fa-key mr-1.5" />
+            Account
+          </Link>
+          <button
+            type="button"
+            onClick={logout}
+            className="text-xs px-3 py-1.5 rounded-lg bg-slate-950 text-slate-400 hover:text-rose-300 border border-slate-800 transition"
+          >
+            <i className="fa-solid fa-right-from-bracket mr-1.5" />
+            Log out
+          </button>
+        </div>
       </div>
     </header>
   );

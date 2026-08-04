@@ -30,10 +30,16 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  if (pathname === "/login" && user) {
+  if ((pathname === "/login" || pathname === "/register") && user) {
     return NextResponse.redirect(
       new URL(user.role === "TRAINER" ? "/trainer" : "/student", request.url),
     );
+  }
+
+  if (pathname === "/account") {
+    if (!user) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
   }
 
   if (pathname === "/") {
@@ -49,5 +55,12 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/login", "/student/:path*", "/trainer/:path*"],
+  matcher: [
+    "/",
+    "/login",
+    "/register",
+    "/account",
+    "/student/:path*",
+    "/trainer/:path*",
+  ],
 };

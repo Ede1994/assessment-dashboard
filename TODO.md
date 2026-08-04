@@ -9,21 +9,20 @@ Last updated: 2026-08-04
 ## Open
 
 ### Product / features
-- [ ] In-UI question bank editor (create/edit/delete questions & solutions) — currently seed/DB only
-- [ ] Real authentication (replace mock cookie logins / plaintext passwords)
 - [ ] Automated grading for multiple-choice (scoreboard); optional AI-assist for free-text review
 - [ ] File uploads (e.g. notebooks, code attachments) on submissions
 - [ ] Multi-tenant / class / course model (orgs, cohorts)
 - [ ] Trainer can assign by **category presets** in one click (CT-track, MRI-track, PyTorch-only) — partial: category +/- buttons exist; named presets would help
 - [ ] Student progress emails / export of submissions (CSV/PDF)
 - [ ] German UI locale toggle (content is English by design)
+- [ ] In-UI category editor (create/rename categories) — questions can be edited; categories still seeded
 
 ### Engineering / polish
 - [ ] Migrate Next.js `middleware` → `proxy` (Next 16 deprecation warning)
-- [ ] Commit initial codebase to git (repo was scaffolded; confirm what is pushed)
 - [ ] Add minimal automated tests (auth + assignment filter + MC submit)
 - [ ] Ensure Font Awesome webfonts resolve reliably in production (CSS import path)
 - [ ] CI: `prisma generate` + `db push`/`migrate` + build on PR
+- [ ] Rate-limit login/register endpoints
 
 ### Content
 - [ ] Review remaining near-duplicates between template bank and tutor bank
@@ -34,10 +33,16 @@ Last updated: 2026-08-04
 
 ## Done
 
+### Auth + question editor (2026-08-04)
+- [x] Real auth: bcrypt `passwordHash`, student self-register, change password, trainer user provisioning
+- [x] Signed httpOnly iron-session cookies; `SESSION_SECRET` required in production (≥32 chars)
+- [x] In-UI question bank editor: create / edit / delete questions + solutions (+ MC choices)
+- [x] Trainer routes: `/trainer/questions/new`, `/trainer/questions/[id]/edit`, `/trainer/users`, `/account`, `/register`
+
 ### Prototype platform (sessions 2026-08-04)
 - [x] Next.js App Router + TypeScript + Tailwind dark medical UI (from interview-prep HTML look)
 - [x] Prisma + SQLite (`better-sqlite3` adapter, Prisma 7)
-- [x] Mock logins: `student`/`student`, `student2`/`student2`, `trainer`/`trainer`
+- [x] Demo accounts: `student`/`student`, `student2`/`student2`, `trainer`/`trainer` (passwords hashed in DB)
 - [x] Student routes: list, filter/search, answer free-text & MC (no solutions leaked)
 - [x] Trainer routes: overview, question bank + solutions, submissions side-by-side
 - [x] Seed English question bank from medical data engineering prep HTML (~16 scenarios + CT/MRI extras)
@@ -46,6 +51,7 @@ Last updated: 2026-08-04
 - [x] Students only see assigned questions; demo: full track vs CT-focused (`student2`)
 - [x] README with setup and credentials
 - [x] `TODO.md` + `MEMORY.md` for cross-agent continuity
+- [x] Pushed to https://github.com/Ede1994/assessment-dashboard
 
 ---
 

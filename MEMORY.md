@@ -22,11 +22,13 @@ Last updated: 2026-08-04
 | Decision | Choice | Why |
 |----------|--------|-----|
 | Stack | Next.js App Router + Prisma + SQLite | Fast single-app prototype |
-| Auth | Mock only (`iron-session` cookie) | Explicitly out of scope for real auth |
+| Auth | bcrypt password hashes + iron-session cookies | Real credential storage; signed sessions |
+| Self-register | Students only (`/register`) | Trainers provisioned by trainers |
 | Answer types | Mix free-text + multiple choice | User choice |
 | Solutions visibility | Never on student APIs | Trainer-only via `/api/solutions` and trainer pages |
 | Task scoping | Per-student `QuestionAssignment` | e.g. CT track without MRI tasks |
 | Empty assignments | If a student has **0** assignments → show **full** bank | Avoid locking demos; curated sets use explicit assignments |
+| Question authoring | Trainer in-UI CRUD + seed bootstrap | Day-to-day edits without reseed |
 
 ---
 
@@ -83,6 +85,12 @@ MRI-heavy filter used for `student2` seed (regex-ish on title/tags/prompt): MRI,
 ---
 
 ## Session log
+
+### 2026-08-04 — Real auth + question bank editor
+- User asked for in-UI question CRUD and real authentication (no plaintext passwords).
+- Auth: `passwordHash` + bcryptjs; `/register` (students); `/account` change password; trainer `/trainer/users` provisioning; iron-session kept for cookies; production requires `SESSION_SECRET` ≥32 chars.
+- Question editor: POST/PUT/DELETE on `/api/questions`; UI at `/trainer/questions/new` and `/trainer/questions/[id]/edit`; delete from bank list.
+- Demo seed passwords still `student`/`trainer` but stored hashed; new accounts need ≥8 chars.
 
 ### 2026-08-04 — Continuity docs
 - User asked for `TODO.md` (shared open/done board) and `MEMORY.md` (cross-agent memory). Created both at repo root.

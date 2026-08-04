@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { verifyPassword } from "@/lib/password";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
   }
 
   const user = await prisma.user.findUnique({ where: { username } });
-  if (!user || user.password !== password) {
+  if (!user || !(await verifyPassword(password, user.passwordHash))) {
     return NextResponse.json(
       { error: "Invalid credentials." },
       { status: 401 },

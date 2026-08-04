@@ -5,7 +5,12 @@ import Link from "next/link";
 export function TrainerNav({
   active,
 }: {
-  active: "overview" | "questions" | "submissions" | "assignments";
+  active:
+    | "overview"
+    | "questions"
+    | "submissions"
+    | "assignments"
+    | "users";
 }) {
   return (
     <nav className="flex flex-wrap gap-2 border-b border-slate-800 pb-4">
@@ -17,7 +22,7 @@ export function TrainerNav({
       />
       <NavLink
         href="/trainer/questions"
-        label="Question bank & solutions"
+        label="Question bank"
         icon="fa-book"
         active={active === "questions"}
       />
@@ -32,6 +37,12 @@ export function TrainerNav({
         label="Student answers"
         icon="fa-users"
         active={active === "submissions"}
+      />
+      <NavLink
+        href="/trainer/users"
+        label="Users"
+        icon="fa-user-plus"
+        active={active === "users"}
       />
     </nav>
   );
