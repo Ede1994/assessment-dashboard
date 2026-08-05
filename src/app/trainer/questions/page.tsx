@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { MathText } from "@/components/MathText";
 import { TrainerNav } from "@/components/TrainerNav";
+import { useToast } from "@/components/Toast";
 import { categoryColors } from "@/lib/colors";
 import type { CategoryDto, ChoiceDto, SolutionDto } from "@/lib/types";
 
@@ -23,6 +25,7 @@ type TrainerQuestion = {
 };
 
 export default function TrainerQuestionsPage() {
+  const { toast } = useToast();
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [questions, setQuestions] = useState<TrainerQuestion[]>([]);
   const [tab, setTab] = useState("all");
@@ -31,6 +34,9 @@ export default function TrainerQuestionsPage() {
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [cloningId, setCloningId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<TrainerQuestion | null>(
+    null,
+  );
 
   async function load() {
     const res = await fetch("/api/solutions");
@@ -56,23 +62,22 @@ export default function TrainerQuestionsPage() {
     };
   }, []);
 
-  async function deleteQuestion(id: string, title: string) {
-    if (
-      !window.confirm(
-        `Delete question “${title}”? This also removes its solution, choices, assignments, and submissions.`,
-      )
-    ) {
-      return;
-    }
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    const { id, title } = pendingDelete;
     setDeletingId(id);
     setError("");
     try {
       const res = await fetch(`/api/questions/${id}`, { method: "DELETE" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Delete failed");
+      setPendingDelete(null);
+      toast(`Deleted “${title}”.`, "success");
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Delete failed");
+      const msg = e instanceof Error ? e.message : "Delete failed";
+      setError(msg);
+      toast(msg, "error");
     } finally {
       setDeletingId(null);
     }
@@ -85,9 +90,12 @@ export default function TrainerQuestionsPage() {
       const res = await fetch(`/api/questions/${id}/clone`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Clone failed");
+      toast("Question cloned.", "success");
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Clone failed");
+      const msg = e instanceof Error ? e.message : "Clone failed";
+      setError(msg);
+      toast(msg, "error");
     } finally {
       setCloningId(null);
     }
@@ -210,7 +218,7 @@ export default function TrainerQuestionsPage() {
                       <button
                         type="button"
                         disabled={deletingId === q.id}
-                        onClick={() => deleteQuestion(q.id, q.title)}
+                        onClick={() => setPendingDelete(q)}
                         className="text-xs px-2.5 py-1 rounded-lg bg-slate-950 border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 disabled:opacity-50"
                       >
                         {deletingId === q.id ? "…" : "Delete"}
@@ -294,6 +302,21 @@ export default function TrainerQuestionsPage() {
           ← Back to overview
         </Link>
       </main>
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title="Delete question?"
+        body={
+          pendingDelete
+            ? `Delete “${pendingDelete.title}”? This also removes its solution, choices, assignments, and submissions.`
+            : ""
+        }
+        confirmLabel="Delete"
+        danger
+        busy={Boolean(deletingId)}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => void confirmDelete()}
+      />
     </div>
   );
 }

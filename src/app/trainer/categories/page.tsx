@@ -2,7 +2,9 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { TrainerNav } from "@/components/TrainerNav";
+import { useToast } from "@/components/Toast";
 import { colorMap } from "@/lib/colors";
 
 type CategoryRow = {
@@ -31,6 +33,7 @@ function emptyDraft() {
 }
 
 export default function TrainerCategoriesPage() {
+  const { toast } = useToast();
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [draft, setDraft] = useState(emptyDraft());
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -39,6 +42,7 @@ export default function TrainerCategoriesPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<CategoryRow | null>(null);
 
   async function load() {
     const res = await fetch("/api/categories");
@@ -112,20 +116,25 @@ export default function TrainerCategoriesPage() {
           ? `Updated ${data.category.name}.`
           : `Created ${data.category.name}.`,
       );
+      toast(
+        editingId
+          ? `Updated ${data.category.name}.`
+          : `Created ${data.category.name}.`,
+        "success",
+      );
       cancelEdit();
       await load();
     } catch {
       setError("Network error");
+      toast("Network error", "error");
     } finally {
       setSaving(false);
     }
   }
 
-  async function onDelete(c: CategoryRow) {
-    const ok = window.confirm(
-      `Delete category “${c.name}”? Only empty categories can be removed.`,
-    );
-    if (!ok) return;
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    const c = pendingDelete;
     setBusyId(c.id);
     setError("");
     setMessage("");
@@ -134,13 +143,17 @@ export default function TrainerCategoriesPage() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Could not delete category");
+        toast(data.error ?? "Could not delete category", "error");
         return;
       }
+      setPendingDelete(null);
       setMessage(`Deleted ${c.name}.`);
+      toast(`Deleted ${c.name}.`, "success");
       if (editingId === c.id) cancelEdit();
       await load();
     } catch {
       setError("Network error");
+      toast("Network error", "error");
     } finally {
       setBusyId(null);
     }
@@ -295,7 +308,7 @@ export default function TrainerCategoriesPage() {
                             ? "Reassign or delete questions first"
                             : "Delete category"
                         }
-                        onClick={() => onDelete(c)}
+                        onClick={() => setPendingDelete(c)}
                         className="text-xs px-2.5 py-1 rounded-lg border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 disabled:opacity-40"
                       >
                         Delete
@@ -308,6 +321,21 @@ export default function TrainerCategoriesPage() {
           </div>
         )}
       </main>
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title="Delete category?"
+        body={
+          pendingDelete
+            ? `Delete category “${pendingDelete.name}”? Only empty categories can be removed.`
+            : ""
+        }
+        confirmLabel="Delete"
+        danger
+        busy={Boolean(busyId)}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => void confirmDelete()}
+      />
     </div>
   );
 }

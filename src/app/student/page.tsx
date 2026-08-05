@@ -15,6 +15,7 @@ export default function StudentDashboardPage() {
   const [questions, setQuestions] = useState<QuestionListItem[]>([]);
   const [progress, setProgress] = useState<ProgressDto>({ answered: 0, total: 0 });
   const [assignmentMode, setAssignmentMode] = useState(false);
+  const [dueAt, setDueAt] = useState<string | null>(null);
   const [tab, setTab] = useState("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortMode, setSortMode] = useState<SortMode>("default");
@@ -34,6 +35,7 @@ export default function StudentDashboardPage() {
         setQuestions(data.questions);
         setProgress(data.progress);
         setAssignmentMode(Boolean(data.assignmentMode));
+        setDueAt(data.dueAt ?? null);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Error");
       } finally {
@@ -61,6 +63,12 @@ export default function StudentDashboardPage() {
     progress.total > 0
       ? Math.round((progress.answered / progress.total) * 100)
       : 0;
+  const dueDate = dueAt ? new Date(dueAt) : null;
+  const dueOverdue =
+    dueDate != null &&
+    !Number.isNaN(dueDate.getTime()) &&
+    dueDate.getTime() < Date.now() &&
+    unansweredCount > 0;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -155,6 +163,20 @@ export default function StudentDashboardPage() {
                   No curated assignment yet — showing the full question bank.
                 </p>
               )}
+              {dueDate && !Number.isNaN(dueDate.getTime()) ? (
+                <p
+                  className={`text-xs mt-2 ${
+                    dueOverdue ? "text-rose-400" : "text-amber-300"
+                  }`}
+                >
+                  <i className="fa-solid fa-calendar-day mr-1.5" />
+                  {dueOverdue ? "Overdue since " : "Due "}
+                  {dueDate.toLocaleDateString()}
+                  {progress.total > 0
+                    ? ` · ${pctComplete}% complete`
+                    : null}
+                </p>
+              ) : null}
             </div>
             {nextUnanswered ? (
               <Link

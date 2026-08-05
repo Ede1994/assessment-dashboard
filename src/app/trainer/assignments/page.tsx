@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { TrainerNav } from "@/components/TrainerNav";
+import { useToast } from "@/components/Toast";
+import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
 import {
   ASSIGNMENT_PRESETS,
   questionIdsForPreset,
@@ -15,6 +17,7 @@ type Student = {
   displayName: string;
   assignedCount: number;
   totalQuestions: number;
+  dueAt: string | null;
 };
 
 type Category = {
@@ -36,18 +39,44 @@ type QuestionRow = {
   category: { slug: string; name: string; color: string };
 };
 
+function toDateInputValue(iso: string | null | undefined) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function setEquals(a: Set<string>, b: Set<string>) {
+  if (a.size !== b.size) return false;
+  for (const v of a) if (!b.has(v)) return false;
+  return true;
+}
+
 export default function TrainerAssignmentsPage() {
+  const { toast } = useToast();
   const [students, setStudents] = useState<Student[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [savedSelected, setSavedSelected] = useState<Set<string>>(new Set());
+  const [dueAt, setDueAt] = useState("");
+  const [savedDueAt, setSavedDueAt] = useState("");
+  const [cohortIds, setCohortIds] = useState<Set<string>>(new Set());
+  const [copyFromId, setCopyFromId] = useState("");
   const [filterCat, setFilterCat] = useState("all");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  const dirty =
+    !setEquals(selected, savedSelected) || dueAt !== savedDueAt;
+
+  useUnsavedChangesWarning(dirty);
 
   async function load(studentId?: string) {
     const qs = studentId ? `?studentId=${encodeURIComponent(studentId)}` : "";
@@ -61,10 +90,23 @@ export default function TrainerAssignmentsPage() {
     const sid = studentId || data.students[0]?.id || "";
     setSelectedStudentId(sid);
 
-    const mine = (data.assignments as { userId: string; questionId: string }[])
+    const mine = (data.assignments as { userId: string; questionId: string; dueAt: string | null }[])
       .filter((a) => a.userId === sid)
       .map((a) => a.questionId);
-    setSelected(new Set(mine));
+    const nextSelected = new Set(mine);
+    setSelected(nextSelected);
+    setSavedSelected(new Set(mine));
+
+    const due =
+      (data.assignments as { userId: string; dueAt: string | null }[]).find(
+        (a) => a.userId === sid && a.dueAt,
+      )?.dueAt ??
+      data.students.find((s: Student) => s.id === sid)?.dueAt ??
+      null;
+    const dueInput = toDateInputValue(due);
+    setDueAt(dueInput);
+    setSavedDueAt(dueInput);
+    setCohortIds(new Set());
   }
 
   useEffect(() => {
@@ -84,19 +126,33 @@ export default function TrainerAssignmentsPage() {
   }, []);
 
   async function onSelectStudent(id: string) {
-    setSelectedStudentId(id);
-    setMessage("");
+    if (id === selectedStudentId) return;
+  if (dirty && !window.confirm(
+        "You have unsaved assignment changes. Discard them and switch student?",
+      )) {
+      return;
+    }
     setError("");
     try {
       const res = await fetch(
         `/api/assignments?studentId=${encodeURIComponent(id)}`,
       );
       const data = await res.json();
-      const mine = (data.assignments as { questionId: string }[]).map(
+      setSelectedStudentId(id);
+      const mine = (data.assignments as { questionId: string; dueAt: string | null }[]).map(
         (a) => a.questionId,
       );
       setSelected(new Set(mine));
+      setSavedSelected(new Set(mine));
+      const due =
+        data.assignments.find((a: { dueAt: string | null }) => a.dueAt)?.dueAt ??
+        data.students.find((s: Student) => s.id === id)?.dueAt ??
+        null;
+      const dueInput = toDateInputValue(due);
+      setDueAt(dueInput);
+      setSavedDueAt(dueInput);
       setStudents(data.students);
+      setCohortIds(new Set());
     } catch {
       setError("Could not load student assignments");
     }
@@ -151,39 +207,88 @@ export default function TrainerAssignmentsPage() {
     const ids = questionIdsForPreset(presetId, questions);
     if (!ids) return;
     setSelected(new Set(ids));
-    setMessage("");
     setError("");
+  }
+
+  async function copyFromStudent(sourceId: string) {
+    if (!sourceId) return;
+    try {
+      const res = await fetch(
+        `/api/assignments?studentId=${encodeURIComponent(sourceId)}`,
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Copy failed");
+      const mine = (data.assignments as { questionId: string; dueAt: string | null }[]).map(
+        (a) => a.questionId,
+      );
+      setSelected(new Set(mine));
+      const due =
+        data.assignments.find((a: { dueAt: string | null }) => a.dueAt)?.dueAt ??
+        null;
+      if (due) setDueAt(toDateInputValue(due));
+      toast(
+        `Loaded ${mine.length} tasks from ${
+          students.find((s) => s.id === sourceId)?.displayName ?? "student"
+        }. Save to apply.`,
+        "info",
+      );
+    } catch {
+      setError("Could not copy assignments");
+      toast("Could not copy assignments", "error");
+    }
+  }
+
+  function toggleCohort(id: string) {
+    if (id === selectedStudentId) return;
+    setCohortIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   async function save() {
     if (!selectedStudentId) return;
     setSaving(true);
-    setMessage("");
     setError("");
     try {
+      const targets = [selectedStudentId, ...cohortIds];
       const res = await fetch("/api/assignments", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          studentId: selectedStudentId,
+          studentIds: targets,
           questionIds: [...selected],
+          dueAt: dueAt ? new Date(`${dueAt}T23:59:59`).toISOString() : null,
         }),
       });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Save failed");
+        toast(data.error ?? "Save failed", "error");
         return;
       }
-      setMessage(`Saved ${data.assignedCount} assigned tasks.`);
+      const msg =
+        targets.length > 1
+          ? `Assigned ${data.assignedCount} tasks to ${data.studentCount} students.`
+          : `Saved ${data.assignedCount} assigned tasks.`;
+      toast(msg, "success");
+      setCohortIds(new Set());
       await load(selectedStudentId);
     } catch {
       setError("Network error");
+      toast("Network error", "error");
     } finally {
       setSaving(false);
     }
   }
 
   const student = students.find((s) => s.id === selectedStudentId);
+  const pct =
+    questions.length > 0
+      ? Math.round((selected.size / questions.length) * 100)
+      : 0;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -201,9 +306,9 @@ export default function TrainerAssignmentsPage() {
             Per-student task selection
           </h2>
           <p className="text-xs text-slate-400 max-w-3xl">
-            Choose which questions each student must answer. Use presets
-            (CT-track, MRI-track, PyTorch-only) or category +/- buttons, then
-            Save. Students only see their assigned set.
+            Choose questions, set an optional due date, copy from another
+            student, or apply the current set to a cohort. Empty assignment =
+            student temporarily sees the full bank.
           </p>
         </section>
 
@@ -229,6 +334,80 @@ export default function TrainerAssignmentsPage() {
                   {s.displayName} ({s.assignedCount}/{s.totalQuestions})
                 </button>
               ))}
+              {dirty ? (
+                <span className="text-[11px] text-amber-400 ml-1">
+                  Unsaved changes
+                </span>
+              ) : null}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <label className="space-y-1 block">
+                <span className="text-xs text-slate-400">Due date (optional)</span>
+                <input
+                  type="date"
+                  value={dueAt}
+                  onChange={(e) => setDueAt(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500"
+                />
+              </label>
+              <label className="space-y-1 block">
+                <span className="text-xs text-slate-400">
+                  Copy selection from student
+                </span>
+                <div className="flex gap-2">
+                  <select
+                    value={copyFromId}
+                    onChange={(e) => setCopyFromId(e.target.value)}
+                    className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500"
+                  >
+                    <option value="">Choose…</option>
+                    {students
+                      .filter((s) => s.id !== selectedStudentId)
+                      .map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.displayName} ({s.assignedCount})
+                        </option>
+                      ))}
+                  </select>
+                  <button
+                    type="button"
+                    disabled={!copyFromId}
+                    onClick={() => copyFromStudent(copyFromId)}
+                    className="px-3 py-2 rounded-lg text-xs border border-slate-700 text-slate-300 hover:border-sky-500/40 disabled:opacity-40"
+                  >
+                    Load
+                  </button>
+                </div>
+              </label>
+              <div className="space-y-1">
+                <span className="text-xs text-slate-400">
+                  Also apply to cohort ({cohortIds.size})
+                </span>
+                <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
+                  {students
+                    .filter((s) => s.id !== selectedStudentId)
+                    .map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => toggleCohort(s.id)}
+                        className={`px-2 py-1 rounded-lg text-[11px] border ${
+                          cohortIds.has(s.id)
+                            ? "bg-violet-600/30 text-violet-200 border-violet-500/40"
+                            : "bg-slate-950 text-slate-500 border-slate-800"
+                        }`}
+                      >
+                        {s.displayName}
+                      </button>
+                    ))}
+                  {students.length <= 1 ? (
+                    <span className="text-[11px] text-slate-600">
+                      No other students yet
+                    </span>
+                  ) : null}
+                </div>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2 items-center justify-between">
@@ -322,7 +501,23 @@ export default function TrainerAssignmentsPage() {
               <span className="text-emerald-400 font-semibold">
                 {selected.size}
               </span>{" "}
-              / {questions.length} selected
+              / {questions.length} selected ({pct}%)
+              {dueAt ? (
+                <>
+                  {" "}
+                  · due{" "}
+                  <span className="text-amber-300">
+                    {new Date(`${dueAt}T23:59:59`).toLocaleDateString()}
+                  </span>
+                </>
+              ) : null}
+              {cohortIds.size > 0 ? (
+                <>
+                  {" "}
+                  · +{cohortIds.size} cohort student
+                  {cohortIds.size === 1 ? "" : "s"}
+                </>
+              ) : null}
             </p>
 
             <div className="bg-slate-900 border border-slate-800 rounded-2xl divide-y divide-slate-800 max-h-[28rem] overflow-y-auto custom-scrollbar">
@@ -374,11 +569,12 @@ export default function TrainerAssignmentsPage() {
                 disabled={saving || !selectedStudentId}
                 className="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 disabled:opacity-60 text-white text-sm font-medium"
               >
-                {saving ? "Saving…" : "Save assignments"}
+                {saving
+                  ? "Saving…"
+                  : cohortIds.size > 0
+                    ? `Save for ${1 + cohortIds.size} students`
+                    : "Save assignments"}
               </button>
-              {message ? (
-                <span className="text-xs text-emerald-400">{message}</span>
-              ) : null}
               {error ? <span className="text-xs text-rose-400">{error}</span> : null}
             </div>
           </>

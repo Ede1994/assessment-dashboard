@@ -97,12 +97,13 @@ model Submission {
 }
 
 model QuestionAssignment {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   questionId String
-  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  assignedAt DateTime @default(now())
+  question   Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  dueAt      DateTime?
+  assignedAt DateTime  @default(now())
 
   @@unique([userId, questionId])
   @@index([userId])

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { MathText } from "@/components/MathText";
 import { TrainerNav } from "@/components/TrainerNav";
+import { useToast } from "@/components/Toast";
 
 type StudentRow = {
   id: string;
@@ -88,6 +89,7 @@ export default function TrainerSubmissionsPage() {
 }
 
 function TrainerSubmissionsContent() {
+  const { toast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialStudent = searchParams.get("student") ?? "all";
@@ -95,6 +97,11 @@ function TrainerSubmissionsContent() {
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([]);
   const [studentFilter, setStudentFilter] = useState(initialStudent);
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "FREE_TEXT" | "MULTIPLE_CHOICE">(
+    "all",
+  );
+  const [onlyMissingAi, setOnlyMissingAi] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [aiBusyId, setAiBusyId] = useState<string | null>(null);
@@ -160,10 +167,30 @@ function TrainerSubmissionsContent() {
     router.replace(url);
   }
 
+  const categories = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const s of submissions) {
+      map.set(s.question.category.slug, s.question.category.name);
+    }
+    return [...map.entries()]
+      .map(([slug, name]) => ({ slug, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [submissions]);
+
   const filtered = useMemo(() => {
-    if (studentFilter === "all") return submissions;
-    return submissions.filter((s) => s.user.id === studentFilter);
-  }, [submissions, studentFilter]);
+    return submissions.filter((s) => {
+      if (studentFilter !== "all" && s.user.id !== studentFilter) return false;
+      if (categoryFilter !== "all" && s.question.category.slug !== categoryFilter) {
+        return false;
+      }
+      if (typeFilter !== "all" && s.question.type !== typeFilter) return false;
+      if (onlyMissingAi) {
+        if (s.question.type !== "FREE_TEXT") return false;
+        if (s.aiFeedback) return false;
+      }
+      return true;
+    });
+  }, [submissions, studentFilter, categoryFilter, typeFilter, onlyMissingAi]);
 
   async function runAiReview(submissionId: string) {
     setAiBusyId(submissionId);
@@ -257,8 +284,15 @@ function TrainerSubmissionsContent() {
           ? "Saved and released to student."
           : "Grade saved (not released).",
       }));
+      toast(
+        data.submission.feedbackReleased
+          ? "Grade saved and released."
+          : "Grade saved.",
+        "success",
+      );
     } catch {
       setGradeError("Network error while saving grade");
+      toast("Could not save grade", "error");
     } finally {
       setGradeBusyId(null);
     }
@@ -356,8 +390,10 @@ function TrainerSubmissionsContent() {
         return;
       }
       setEmailMessage(`Progress email sent to ${data.to}.`);
+      toast(`Progress email sent to ${data.to}.`, "success");
     } catch {
       setEmailError("Network error");
+      toast("Could not send email", "error");
     } finally {
       setEmailBusy(false);
     }
@@ -444,6 +480,47 @@ function TrainerSubmissionsContent() {
               Export PDF
             </button>
           </div>
+        </div>
+
+        <div className="no-print flex flex-wrap gap-2 items-center">
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-sky-500"
+            aria-label="Filter by category"
+          >
+            <option value="all">All categories</option>
+            {categories.map((c) => (
+              <option key={c.slug} value={c.slug}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={typeFilter}
+            onChange={(e) =>
+              setTypeFilter(
+                e.target.value as "all" | "FREE_TEXT" | "MULTIPLE_CHOICE",
+              )
+            }
+            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-sky-500"
+            aria-label="Filter by type"
+          >
+            <option value="all">All types</option>
+            <option value="FREE_TEXT">Free text only</option>
+            <option value="MULTIPLE_CHOICE">Multiple choice only</option>
+          </select>
+          <label className="inline-flex items-center gap-2 text-xs text-slate-400 px-2 py-1.5 rounded-lg border border-slate-800 bg-slate-950 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={onlyMissingAi}
+              onChange={(e) => setOnlyMissingAi(e.target.checked)}
+            />
+            Missing AI review
+          </label>
+          <span className="text-[11px] text-slate-500">
+            Showing {filtered.length} / {submissions.length}
+          </span>
         </div>
 
         {studentFilter !== "all" ? (

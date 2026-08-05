@@ -8,7 +8,7 @@ Last updated: 2026-08-05
 
 ## Progress snapshot (2026-08-05)
 
-Solid prototype: auth, question/category CRUD, per-student assignments + presets, MC auto-grade + scoreboard, trainer free-text grade + release, AI assist, CSV/PDF export, progress email, student progress/filters/nav QoL, Docker, CI, ~110 seeded questions. Main gaps now are **media**, **assignment due dates / cohorts**, and remaining **UI polish** (toasts, a11y, keyboard).
+Solid prototype: auth, CRUD, assignments (presets/due dates/cohorts/copy), MC + free-text grading, AI assist, exports/email, student progress QoL, toasts/confirm dialogs, Docker, CI, ~110 questions. Main gaps now are **media**, **question bank import/export**, and remaining **a11y / keyboard / mobile polish**.
 
 ---
 
@@ -18,23 +18,17 @@ Solid prototype: auth, question/category CRUD, per-student assignments + presets
 - [ ] Add images and videos to questions and solutions (CT/MRI scans, diagrams, etc.)
 - [ ] Question editor: upload media (image/video) for prompt and/or solution
 - [ ] Question bank import/export (JSON/CSV) for content management without reseed
-- [ ] Assignment due dates + progress tracking (% complete; optional time spent)
-- [ ] Assignment cohorts: apply the same question set to many students in one action
-- [ ] Copy assignments student A → B (or save/load a named assignment template)
 - [ ] Optional exam mode: soft-lock MC after first submit (vs practice retries)
+- [ ] Named assignment templates (persist presets beyond CT/MRI/PyTorch built-ins)
 
 ### Student UX / QoL
-- [ ] (none currently — progress filters/nav/draft/next-prev shipped 2026-08-05)
+- [ ] (none currently)
 
 ### Trainer UX / QoL
-- [ ] Submissions filters: category, type, free-text-only, missing AI review
 - [ ] Compact question-bank table/list view (alongside cards) + bulk actions
 - [ ] Preview-as-student (prompt/choices without solutions)
-- [ ] Unsaved-changes warning on assignments page and question editor
-- [ ] Confirm modals instead of `window.confirm` (delete user/category/question)
 
 ### UI polish / accessibility
-- [ ] Shared toast/snackbar for save, delete, export, email success/errors
 - [ ] Keyboard QoL: `/` focus search, `j`/`k` list navigation, `Esc` dismiss dialogs
 - [ ] Basic a11y pass: labels, live regions for save status, focus traps, reduced-motion
 - [ ] Mobile polish: sticky filters, denser cards, always-visible progress chip
@@ -53,6 +47,13 @@ Solid prototype: auth, question/category CRUD, per-student assignments + presets
 ---
 
 ## Done
+
+### Assignment cohorts + due dates + trainer QoL (2026-08-05)
+- [x] Assignment `dueAt` on QuestionAssignment; student dashboard due/overdue + % complete
+- [x] Cohort apply (`studentIds[]`) + copy selection from student A → current
+- [x] Submissions filters: category, type, free-text, missing AI review
+- [x] Shared toast provider + confirm dialogs for delete user/category/question
+- [x] Unsaved-changes warning on assignments + question editor
 
 ### Student progress + trainer grading + QoL (2026-08-05)
 - [x] Student dashboard: progress overview (% / unanswered / MC / free-text), status filters, sort, resume CTA, empty states

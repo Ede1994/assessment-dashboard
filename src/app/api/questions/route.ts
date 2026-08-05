@@ -14,7 +14,7 @@ export async function GET() {
   const assignedIds =
     user.role === "STUDENT" ? await getAssignedQuestionIds(user.id) : null;
 
-  const [categories, questions] = await Promise.all([
+  const [categories, questions, dueRow] = await Promise.all([
     prisma.category.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.question.findMany({
       where:
@@ -38,6 +38,13 @@ export async function GET() {
         },
       },
     }),
+    user.role === "STUDENT"
+      ? prisma.questionAssignment.findFirst({
+          where: { userId: user.id, dueAt: { not: null } },
+          select: { dueAt: true },
+          orderBy: { dueAt: "asc" },
+        })
+      : Promise.resolve(null),
   ]);
 
   const payload = questions.map((q) => {
@@ -97,6 +104,7 @@ export async function GET() {
     ),
     questions: payload,
     assignmentMode: assignedIds !== null,
+    dueAt: dueRow?.dueAt ?? null,
     progress: {
       answered: payload.filter((q) => q.answered).length,
       total: payload.length,

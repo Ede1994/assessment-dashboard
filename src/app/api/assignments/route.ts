@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 
+function parseDueAt(value: unknown): Date | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  const d = new Date(String(value));
+  if (Number.isNaN(d.getTime())) return undefined;
+  return d;
+}
+
 /** Trainer: list assignments (optionally for one student). */
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
@@ -19,6 +27,11 @@ export async function GET(request: NextRequest) {
         username: true,
         displayName: true,
         _count: { select: { assignments: true } },
+        assignments: {
+          select: { dueAt: true },
+          take: 1,
+          orderBy: { assignedAt: "desc" },
+        },
       },
       orderBy: { username: "asc" },
     }),
@@ -38,7 +51,7 @@ export async function GET(request: NextRequest) {
     }),
     prisma.questionAssignment.findMany({
       where: studentId ? { userId: studentId } : undefined,
-      select: { userId: true, questionId: true },
+      select: { userId: true, questionId: true, dueAt: true },
     }),
   ]);
 
@@ -51,6 +64,7 @@ export async function GET(request: NextRequest) {
       displayName: s.displayName,
       assignedCount: s._count.assignments,
       totalQuestions,
+      dueAt: s.assignments[0]?.dueAt ?? null,
     })),
     categories,
     questions,
@@ -58,7 +72,10 @@ export async function GET(request: NextRequest) {
   });
 }
 
-/** Trainer: replace the full assignment set for one student. */
+/**
+ * Trainer: replace assignment set for one or many students.
+ * Body: { studentId? | studentIds[], questionIds[], dueAt? }
+ */
 export async function PUT(request: Request) {
   const user = await getCurrentUser();
   if (!user || user.role !== "TRAINER") {
@@ -66,23 +83,43 @@ export async function PUT(request: Request) {
   }
 
   const body = await request.json().catch(() => null);
-  const studentId = String(body?.studentId ?? "");
   const questionIds = Array.isArray(body?.questionIds)
     ? (body.questionIds as unknown[]).map(String)
     : null;
 
-  if (!studentId || questionIds === null) {
+  const studentIdsRaw: string[] = [];
+  if (Array.isArray(body?.studentIds)) {
+    studentIdsRaw.push(...(body.studentIds as unknown[]).map(String));
+  } else if (body?.studentId) {
+    studentIdsRaw.push(String(body.studentId));
+  }
+
+  const studentIds = [...new Set(studentIdsRaw.filter(Boolean))];
+  const dueParsed = parseDueAt(body?.dueAt);
+  if (body?.dueAt !== undefined && dueParsed === undefined) {
     return NextResponse.json(
-      { error: "studentId and questionIds[] are required" },
+      { error: "dueAt must be a valid date or null." },
+      { status: 400 },
+    );
+  }
+  const dueAt = dueParsed === undefined ? null : dueParsed;
+
+  if (studentIds.length === 0 || questionIds === null) {
+    return NextResponse.json(
+      { error: "studentId (or studentIds[]) and questionIds[] are required" },
       { status: 400 },
     );
   }
 
-  const student = await prisma.user.findFirst({
-    where: { id: studentId, role: "STUDENT" },
+  const students = await prisma.user.findMany({
+    where: { id: { in: studentIds }, role: "STUDENT" },
+    select: { id: true },
   });
-  if (!student) {
-    return NextResponse.json({ error: "Student not found" }, { status: 404 });
+  if (students.length !== studentIds.length) {
+    return NextResponse.json(
+      { error: "One or more students were not found." },
+      { status: 404 },
+    );
   }
 
   const uniqueIds = [...new Set(questionIds)];
@@ -98,23 +135,27 @@ export async function PUT(request: Request) {
     }
   }
 
-  await prisma.$transaction([
-    prisma.questionAssignment.deleteMany({ where: { userId: studentId } }),
-    ...(uniqueIds.length
-      ? [
-          prisma.questionAssignment.createMany({
-            data: uniqueIds.map((questionId) => ({
-              userId: studentId,
-              questionId,
-            })),
-          }),
-        ]
-      : []),
-  ]);
+  await prisma.$transaction(async (tx) => {
+    await tx.questionAssignment.deleteMany({
+      where: { userId: { in: studentIds } },
+    });
+    if (uniqueIds.length === 0) return;
+    await tx.questionAssignment.createMany({
+      data: studentIds.flatMap((userId) =>
+        uniqueIds.map((questionId) => ({
+          userId,
+          questionId,
+          dueAt,
+        })),
+      ),
+    });
+  });
 
   return NextResponse.json({
     ok: true,
-    studentId,
+    studentIds,
     assignedCount: uniqueIds.length,
+    studentCount: studentIds.length,
+    dueAt,
   });
 }

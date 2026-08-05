@@ -132,7 +132,7 @@ Seed data still bootstraps categories and the initial bank via `npm run db:seed`
 
 ## Assignments
 
-Trainers open **Assign tasks** (`/trainer/assignments`), pick a student, then select individual questions, whole categories (+/−), or named presets (**CT-track**, **MRI-track**, **PyTorch-only**). Saving replaces that student’s assignment set. Students with no assignments temporarily see the full bank.
+Trainers open **Assign tasks** (`/trainer/assignments`), pick a student, then select individual questions, whole categories (+/−), or named presets (**CT-track**, **MRI-track**, **PyTorch-only**). Optional **due date**, **copy from another student**, and **cohort** multi-select apply the same set to several students at once. Saving replaces each target student’s assignment set. Students with no assignments temporarily see the full bank; due dates appear on the student dashboard with overdue highlighting.
 
 ## Categories
 

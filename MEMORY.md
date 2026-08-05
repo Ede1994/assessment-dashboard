@@ -57,7 +57,7 @@ Last updated: 2026-08-05
 /trainer                    → overview + MC scoreboard (links to filtered submissions)
 /trainer/questions          → bank + ideal solutions (+ Clone)
 /trainer/categories         → create / rename / delete empty categories
-/trainer/assignments        → pick questions per student (+ named presets)
+/trainer/assignments        → pick questions (+ due date, cohort, copy-from)
 /trainer/submissions        → student vs ideal + free-text grade/release (+ CSV/PDF)
 /trainer/users              → create / delete / reset password
 
@@ -70,6 +70,7 @@ API: /api/auth/*, /api/questions, /api/questions/[id]/clone, /api/submissions,
 - Prisma 7 needs `@prisma/adapter-better-sqlite3` + path helper in `src/lib/prisma.ts`.
 - Seed: `prisma/seed.ts` + `prisma/tutorQuestionsEn.ts`; run `npm run db:seed` or `db:reset`.
 - Submission trainer fields: `trainerScore`, `trainerPassed`, `trainerComment`, `feedbackReleased`, `trainerGradedAt`. Student revise clears them (same as AI feedback).
+- Assignment `dueAt` (per-student set, same on all rows). Cohort save via `studentIds[]` on PUT `/api/assignments`.
 
 ---
 
@@ -97,6 +98,15 @@ MRI-heavy filter used for `student2` seed and CT-track preset (regex-ish on titl
 ---
 
 ## Session log
+
+### 2026-08-05 — Assignment due dates/cohorts + trainer QoL polish
+- User asked to build the next features from TODO.
+- Schema: `QuestionAssignment.dueAt`; PUT `/api/assignments` accepts `studentIds[]` + `dueAt`.
+- Assignments UI: due date, copy-from-student, cohort multi-apply, dirty warning + toast.
+- Student dashboard shows due/overdue with % complete.
+- Submissions: category/type/missing-AI filters.
+- Shared `ToastProvider` + `ConfirmDialog`; wired deletes on questions/users/categories.
+- Unsaved warning on question editor; README/TODO/MEMORY updated. Build verified.
 
 ### 2026-08-05 — Student progress QoL + trainer free-text grading
 - User asked to read repo and implement next features (from TODO).

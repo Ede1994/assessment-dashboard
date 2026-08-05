@@ -1,10 +1,12 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppHeader } from "@/components/AppHeader";
 import { TrainerNav } from "@/components/TrainerNav";
+import { useToast } from "@/components/Toast";
+import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
 import type { CategoryDto } from "@/lib/types";
 
 type ChoiceDraft = { label: string; isCorrect: boolean };
@@ -19,8 +21,26 @@ const emptyChoice = (): ChoiceDraft => ({ label: "", isCorrect: false });
 const inputClass =
   "w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500";
 
+function snapshot(data: {
+  categoryId: string;
+  title: string;
+  prompt: string;
+  roundLabel: string;
+  tags: string;
+  type: string;
+  codeSnippet: string;
+  sortOrder: string;
+  idealAnswer: string;
+  explanation: string;
+  codeSolution: string;
+  choices: ChoiceDraft[];
+}) {
+  return JSON.stringify(data);
+}
+
 export function QuestionEditor({ mode, questionId }: QuestionEditorProps) {
   const router = useRouter();
+  const { toast } = useToast();
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [categoryId, setCategoryId] = useState("");
   const [title, setTitle] = useState("");
@@ -37,9 +57,27 @@ export function QuestionEditor({ mode, questionId }: QuestionEditorProps) {
     emptyChoice(),
     emptyChoice(),
   ]);
+  const [baseline, setBaseline] = useState("");
   const [loading, setLoading] = useState(mode === "edit");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const currentSnap = snapshot({
+    categoryId,
+    title,
+    prompt,
+    roundLabel,
+    tags,
+    type,
+    codeSnippet,
+    sortOrder,
+    idealAnswer,
+    explanation,
+    codeSolution,
+    choices,
+  });
+  const dirty = Boolean(baseline) && currentSnap !== baseline;
+  useUnsavedChangesWarning(dirty && !saving);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,8 +88,26 @@ export function QuestionEditor({ mode, questionId }: QuestionEditorProps) {
         const catData = await catRes.json();
         if (cancelled) return;
         setCategories(catData.categories);
-        if (mode === "create" && catData.categories[0]) {
-          setCategoryId(catData.categories[0].id);
+
+        if (mode === "create") {
+          const firstId = catData.categories[0]?.id ?? "";
+          setCategoryId(firstId);
+          setBaseline(
+            snapshot({
+              categoryId: firstId,
+              title: "",
+              prompt: "",
+              roundLabel: "Custom",
+              tags: "",
+              type: "FREE_TEXT",
+              codeSnippet: "",
+              sortOrder: "",
+              idealAnswer: "",
+              explanation: "",
+              codeSolution: "",
+              choices: [emptyChoice(), emptyChoice()],
+            }),
+          );
         }
 
         if (mode === "edit" && questionId) {
@@ -59,25 +115,53 @@ export function QuestionEditor({ mode, questionId }: QuestionEditorProps) {
           if (!qRes.ok) throw new Error("Failed to load question");
           const q = await qRes.json();
           if (cancelled) return;
-          setCategoryId(q.categoryId ?? q.category?.id ?? "");
-          setTitle(q.title ?? "");
-          setPrompt(q.prompt ?? "");
-          setRoundLabel(q.roundLabel ?? "Custom");
-          setTags(q.tags ?? "");
-          setType(q.type ?? "FREE_TEXT");
-          setCodeSnippet(q.codeSnippet ?? "");
-          setSortOrder(String(q.sortOrder ?? ""));
-          setIdealAnswer(q.solution?.idealAnswer ?? "");
-          setExplanation(q.solution?.explanation ?? "");
-          setCodeSolution(q.solution?.codeSolution ?? "");
-          if (q.choices?.length) {
-            setChoices(
-              q.choices.map((c: { label: string; isCorrect?: boolean }) => ({
+          const nextCategoryId = q.categoryId ?? q.category?.id ?? "";
+          const nextTitle = q.title ?? "";
+          const nextPrompt = q.prompt ?? "";
+          const nextRound = q.roundLabel ?? "Custom";
+          const nextTags = q.tags ?? "";
+          const nextType = (q.type ?? "FREE_TEXT") as
+            | "FREE_TEXT"
+            | "MULTIPLE_CHOICE";
+          const nextCode = q.codeSnippet ?? "";
+          const nextSort = String(q.sortOrder ?? "");
+          const nextIdeal = q.solution?.idealAnswer ?? "";
+          const nextExpl = q.solution?.explanation ?? "";
+          const nextCodeSol = q.solution?.codeSolution ?? "";
+          const nextChoices = q.choices?.length
+            ? q.choices.map((c: { label: string; isCorrect?: boolean }) => ({
                 label: c.label,
                 isCorrect: Boolean(c.isCorrect),
-              })),
-            );
-          }
+              }))
+            : [emptyChoice(), emptyChoice()];
+          setCategoryId(nextCategoryId);
+          setTitle(nextTitle);
+          setPrompt(nextPrompt);
+          setRoundLabel(nextRound);
+          setTags(nextTags);
+          setType(nextType);
+          setCodeSnippet(nextCode);
+          setSortOrder(nextSort);
+          setIdealAnswer(nextIdeal);
+          setExplanation(nextExpl);
+          setCodeSolution(nextCodeSol);
+          setChoices(nextChoices);
+          setBaseline(
+            snapshot({
+              categoryId: nextCategoryId,
+              title: nextTitle,
+              prompt: nextPrompt,
+              roundLabel: nextRound,
+              tags: nextTags,
+              type: nextType,
+              codeSnippet: nextCode,
+              sortOrder: nextSort,
+              idealAnswer: nextIdeal,
+              explanation: nextExpl,
+              codeSolution: nextCodeSol,
+              choices: nextChoices,
+            }),
+          );
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Error");
@@ -121,12 +205,19 @@ export function QuestionEditor({ mode, questionId }: QuestionEditorProps) {
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Save failed");
+        toast(data.error ?? "Save failed", "error");
         return;
       }
+      setBaseline(currentSnap);
+      toast(
+        mode === "create" ? "Question created." : "Question saved.",
+        "success",
+      );
       router.push("/trainer/questions");
       router.refresh();
     } catch {
       setError("Network error");
+      toast("Network error", "error");
     } finally {
       setSaving(false);
     }
@@ -154,13 +245,26 @@ export function QuestionEditor({ mode, questionId }: QuestionEditorProps) {
       />
       <main className="max-w-3xl mx-auto px-4 lg:px-8 py-8 flex-1 w-full space-y-6">
         <TrainerNav active="questions" />
-        <Link
-          href="/trainer/questions"
-          className="text-xs text-slate-400 hover:text-sky-300 inline-flex items-center gap-2"
-        >
-          <i className="fa-solid fa-arrow-left" />
-          Back to question bank
-        </Link>
+        <div className="flex items-center justify-between gap-3">
+          <Link
+            href="/trainer/questions"
+            className="text-xs text-slate-400 hover:text-sky-300 inline-flex items-center gap-2"
+            onClick={(e) => {
+              if (
+                dirty &&
+                !window.confirm("Discard unsaved changes and leave the editor?")
+              ) {
+                e.preventDefault();
+              }
+            }}
+          >
+            <i className="fa-solid fa-arrow-left" />
+            Back to question bank
+          </Link>
+          {dirty ? (
+            <span className="text-[11px] text-amber-400">Unsaved changes</span>
+          ) : null}
+        </div>
 
         <form
           onSubmit={onSubmit}
@@ -352,6 +456,14 @@ export function QuestionEditor({ mode, questionId }: QuestionEditorProps) {
             <Link
               href="/trainer/questions"
               className="px-4 py-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 text-sm"
+              onClick={(e) => {
+                if (
+                  dirty &&
+                  !window.confirm("Discard unsaved changes and leave the editor?")
+                ) {
+                  e.preventDefault();
+                }
+              }}
             >
               Cancel
             </Link>
@@ -367,7 +479,7 @@ function Field({
   children,
 }: {
   label: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <label className="block space-y-1.5">

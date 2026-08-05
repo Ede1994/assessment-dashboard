@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fira_Code, Inter } from "next/font/google";
+import { ToastProvider } from "@/components/Toast";
 import "./globals.css";
 
 const inter = Inter({
@@ -25,7 +26,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${inter.variable} ${fira.variable} dark h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-slate-950 text-slate-100 custom-scrollbar">
-        {children}
+        <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
   );

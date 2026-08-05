@@ -2,7 +2,9 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { TrainerNav } from "@/components/TrainerNav";
+import { useToast } from "@/components/Toast";
 
 type UserRow = {
   id: string;
@@ -17,6 +19,7 @@ const inputClass =
   "w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500";
 
 export default function TrainerUsersPage() {
+  const { toast } = useToast();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -29,6 +32,7 @@ export default function TrainerUsersPage() {
   const [resetPassword, setResetPassword] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<UserRow | null>(null);
 
   async function load() {
     const res = await fetch("/api/users");
@@ -70,6 +74,7 @@ export default function TrainerUsersPage() {
         return;
       }
       setMessage(`Created ${data.user.username}.`);
+      toast(`Created ${data.user.username}.`, "success");
       setUsername("");
       setDisplayName("");
       setPassword("");
@@ -77,16 +82,15 @@ export default function TrainerUsersPage() {
       await load();
     } catch {
       setError("Network error");
+      toast("Network error", "error");
     } finally {
       setSaving(false);
     }
   }
 
-  async function onDelete(user: UserRow) {
-    const ok = window.confirm(
-      `Delete ${user.displayName} (@${user.username})? Their submissions and assignments will be removed.`,
-    );
-    if (!ok) return;
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    const user = pendingDelete;
     setBusyId(user.id);
     setError("");
     setMessage("");
@@ -95,9 +99,12 @@ export default function TrainerUsersPage() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Could not delete user");
+        toast(data.error ?? "Could not delete user", "error");
         return;
       }
+      setPendingDelete(null);
       setMessage(`Deleted @${user.username}.`);
+      toast(`Deleted @${user.username}.`, "success");
       if (resetId === user.id) {
         setResetId(null);
         setResetPassword("");
@@ -105,6 +112,7 @@ export default function TrainerUsersPage() {
       await load();
     } catch {
       setError("Network error");
+      toast("Network error", "error");
     } finally {
       setBusyId(null);
     }
@@ -253,7 +261,7 @@ export default function TrainerUsersPage() {
                       <button
                         type="button"
                         disabled={busyId === u.id}
-                        onClick={() => onDelete(u)}
+                        onClick={() => setPendingDelete(u)}
                         className="text-xs px-2.5 py-1 rounded-lg border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 disabled:opacity-60"
                       >
                         Delete
@@ -307,6 +315,21 @@ export default function TrainerUsersPage() {
           </div>
         )}
       </main>
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title="Delete user?"
+        body={
+          pendingDelete
+            ? `Delete ${pendingDelete.displayName} (@${pendingDelete.username})? Their submissions and assignments will be removed.`
+            : ""
+        }
+        confirmLabel="Delete"
+        danger
+        busy={Boolean(busyId)}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => void confirmDelete()}
+      />
     </div>
   );
 }
