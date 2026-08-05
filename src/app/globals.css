@@ -2,6 +2,33 @@
 @import "katex/dist/katex.min.css";
 @import "@fortawesome/fontawesome-free/css/all.min.css";
 
+/*
+ * Font Awesome CSS references ../webfonts relative to the package path,
+ * which breaks once CSS is bundled. Override with absolute /public URLs
+ * (populated by scripts/copy-webfonts.mjs on postinstall / CI).
+ */
+@font-face {
+  font-family: "Font Awesome 7 Free";
+  font-style: normal;
+  font-weight: 900;
+  font-display: block;
+  src: url("/webfonts/fa-solid-900.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Font Awesome 7 Free";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("/webfonts/fa-regular-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Font Awesome 7 Brands";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("/webfonts/fa-brands-400.woff2") format("woff2");
+}
+
 :root {
   --background: #020617;
   --foreground: #f1f5f9;
@@ -44,4 +71,32 @@ code {
   margin: 0.5rem 0;
   overflow-x: auto;
   overflow-y: hidden;
+}
+
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  article,
+  .print-card {
+    break-inside: avoid;
+    border: 1px solid #ccc !important;
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+  }
+}
+
+.print-only {
+  display: none;
 }

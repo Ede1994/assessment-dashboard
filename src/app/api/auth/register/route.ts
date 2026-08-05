@@ -6,9 +6,26 @@ import {
   validatePasswordStrength,
   validateUsername,
 } from "@/lib/password";
+import { clientKey, rateLimit } from "@/lib/rateLimit";
 
 /** Public self-registration — always creates a STUDENT account. */
 export async function POST(request: Request) {
+  const limited = rateLimit(clientKey(request, "register"), {
+    limit: 10,
+    windowMs: 15 * 60 * 1000,
+  });
+  if (!limited.ok) {
+    return NextResponse.json(
+      {
+        error: `Too many registration attempts. Try again in ${limited.retryAfterSec}s.`,
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(limited.retryAfterSec) },
+      },
+    );
+  }
+
   const body = await request.json().catch(() => null);
   const username = String(body?.username ?? "").trim();
   const password = String(body?.password ?? "");

@@ -2,7 +2,7 @@
 
 Shared memory for agents across chats/sessions. Write like a human notebook: durable facts, decisions, pitfalls, and “where things live.” Newest entries at the top of **Session log**.
 
-Last updated: 2026-08-04
+Last updated: 2026-08-05
 
 ---
 
@@ -82,14 +82,24 @@ MRI-heavy filter used for `student2` seed and CT-track preset (regex-ish on titl
 ## Operational notes / pitfalls
 
 - After schema changes: `npx prisma db push` then `npm run db:seed` (seed wipes submissions/assignments/questions).
-- Dev server: `npm run dev` → http://localhost:3000. Next 16 warns that `middleware` is deprecated in favor of `proxy`.
+- Dev server: `npm run dev` → http://localhost:3000. Auth gate lives in `src/proxy.ts` (Next 16; formerly `middleware`).
 - Do **not** edit the Cursor plan file under `~/.cursor/plans/` unless the user asks; product truth is the repo + this MEMORY/TODO.
 - Autoreview may block destructive DB resets (`rm` db / force seed); request approval when needed.
-- Font Awesome via `@fortawesome/fontawesome-free` CSS import in `globals.css`; KaTeX via `MathText` client component.
+- Font Awesome: CSS from `@fortawesome/fontawesome-free`; webfonts copied to `public/webfonts` by `scripts/copy-webfonts.mjs`. KaTeX via `MathText` client component.
+- Progress email needs `SMTP_HOST` + `SMTP_FROM` (optional user/pass/port).
 
 ---
 
 ## Session log
+
+### 2026-08-05 — Proxy, FA webfonts, CI, rate-limit, PDF, progress email
+- User asked for next TODO items (engineering polish + remaining product export/email).
+- `src/middleware.ts` → `src/proxy.ts` (`export function proxy`) per Next 16 docs.
+- Font Awesome: `scripts/copy-webfonts.mjs` on postinstall → `public/webfonts`; absolute `@font-face` in `globals.css`.
+- CI: `.github/workflows/ci.yml` (npm ci, prisma generate, db push, build).
+- Auth rate limits: login 20/15m, register 10/15m (`src/lib/rateLimit.ts`).
+- Submissions: Export PDF via `window.print()` + print CSS; progress email via SMTP (`nodemailer`, `SMTP_*` env) at `POST /api/users/[id]/progress-email`.
+- Remaining open work is content-only (duplicate review, CT/MRI tagging, optional tutor imports).
 
 ### 2026-08-04 — Assignment presets + user admin + CSV + categories
 - User asked for next TODO product features after reading docs.

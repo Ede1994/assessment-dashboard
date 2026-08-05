@@ -2,21 +2,17 @@
 
 Living checklist for agents. Mark items `[x]` when done, add new open work under **Open**, and move finished work to **Done** with a short note.
 
-Last updated: 2026-08-04
+Last updated: 2026-08-05
 
 ---
 
 ## Open
 
 ### Product / features
-- [ ] Student progress emails (CSV export done)
-- [ ] Optional: PDF export of submissions
+_(none)_
 
 ### Engineering / polish
-- [ ] Migrate Next.js `middleware` → `proxy` (Next 16 deprecation warning)
-- [ ] Ensure Font Awesome webfonts resolve reliably in production (CSS import path)
-- [ ] CI: `prisma generate` + `db push`/`migrate` + build on PR
-- [ ] Rate-limit login/register endpoints
+_(none)_
 
 ### Content
 - [ ] Review remaining near-duplicates between template bank and tutor bank
@@ -26,6 +22,14 @@ Last updated: 2026-08-04
 ---
 
 ## Done
+
+### Engineering polish + PDF + progress email (2026-08-05)
+- [x] Migrate `src/middleware.ts` → `src/proxy.ts` (Next 16 `proxy` convention)
+- [x] Font Awesome webfonts: `scripts/copy-webfonts.mjs` → `public/webfonts` + absolute `@font-face` overrides
+- [x] GitHub Actions CI: `prisma generate` + `db push` + build on PR/push
+- [x] Rate-limit login (20/15m) and register (10/15m) by client IP
+- [x] PDF export via browser print on `/trainer/submissions`
+- [x] Student progress emails via SMTP (`POST /api/users/[id]/progress-email`)
 
 ### Assignment presets + student admin + CSV + categories (2026-08-04)
 - [x] Named assignment presets on `/trainer/assignments`: CT-track, MRI-track, PyTorch-only (`src/lib/assignmentPresets.ts`)

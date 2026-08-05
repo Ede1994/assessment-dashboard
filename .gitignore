@@ -43,6 +43,9 @@ next-env.d.ts
 
 /src/generated/prisma
 
+# Font Awesome webfonts (copied by scripts/copy-webfonts.mjs on postinstall)
+/public/webfonts
+
 # sqlite
 *.db
 *.db-journal

@@ -159,6 +159,8 @@ npm test             # API integration tests (auth, assignment filter, MC submit
 - **Multiple choice** is auto-graded from `Choice.isCorrect` when a student saves an answer.
 - Students see Correct / Incorrect on their own MC answers (not the answer key for other choices).
 - Trainers see an **MC scoreboard** on `/trainer` (correct/answered %, completion, free-text count).
+- Trainers can **Export CSV** or **Export PDF** (browser print) of filtered submissions on `/trainer/submissions`.
+- Trainers can **email a progress digest** for one student (requires SMTP env; see below).
 
 ## AI assist (Open WebUI / Ollama)
 
@@ -171,6 +173,20 @@ Trainers can request a free-text review suggestion on `/trainer/submissions`. Th
 | `AI_MODEL` | Model id (default `llama3.1`) |
 
 Copy from `.env.example`, set the key, restart the app. If unset, the AI button returns a clear configuration error (HTTP 503). Feedback is stored on the submission for the trainer only and does **not** change the student answer.
+
+## Progress emails (SMTP)
+
+Trainers can send a text progress digest from `/trainer/submissions` (select one student → recipient email). Uses nodemailer with:
+
+| Env | Purpose |
+|-----|---------|
+| `SMTP_HOST` | SMTP server hostname (required) |
+| `SMTP_FROM` | From address (required) |
+| `SMTP_PORT` | Port (default `587`) |
+| `SMTP_SECURE` | `true` for TLS/465 |
+| `SMTP_USER` / `SMTP_PASS` | Optional auth |
+
+If SMTP is unset, the send action returns HTTP 503 with a configuration hint.
 
 ## Docker (Debian/Ubuntu host)
 

@@ -49,6 +49,10 @@ export default function TrainerSubmissionsPage() {
   const [error, setError] = useState("");
   const [aiBusyId, setAiBusyId] = useState<string | null>(null);
   const [aiError, setAiError] = useState("");
+  const [emailTo, setEmailTo] = useState("");
+  const [emailBusy, setEmailBusy] = useState(false);
+  const [emailMessage, setEmailMessage] = useState("");
+  const [emailError, setEmailError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -166,18 +170,67 @@ export default function TrainerSubmissionsPage() {
     URL.revokeObjectURL(url);
   }
 
+  function exportPdf() {
+    window.print();
+  }
+
+  async function sendProgressEmail() {
+    if (studentFilter === "all") {
+      setEmailError("Select one student before sending a progress email.");
+      return;
+    }
+    setEmailBusy(true);
+    setEmailError("");
+    setEmailMessage("");
+    try {
+      const res = await fetch(`/api/users/${studentFilter}/progress-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: emailTo }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setEmailError(data.error ?? "Could not send email");
+        return;
+      }
+      setEmailMessage(`Progress email sent to ${data.to}.`);
+    } catch {
+      setEmailError("Network error");
+    } finally {
+      setEmailBusy(false);
+    }
+  }
+
+  const selectedStudent = students.find((s) => s.id === studentFilter);
+
   return (
     <div className="min-h-screen flex flex-col">
-      <AppHeader
-        title="Student Assessment Platform"
-        subtitle="Student answers compared with ideal solutions"
-        badge="Trainer"
-      />
+      <div className="no-print">
+        <AppHeader
+          title="Student Assessment Platform"
+          subtitle="Student answers compared with ideal solutions"
+          badge="Trainer"
+        />
+      </div>
 
       <main className="max-w-7xl mx-auto px-4 lg:px-8 py-8 flex-1 w-full space-y-8">
-        <TrainerNav active="submissions" />
+        <div className="no-print">
+          <TrainerNav active="submissions" />
+        </div>
 
-        <div className="flex flex-wrap gap-2 items-center justify-between">
+        <div className="print-only mb-4">
+          <h1 className="text-xl font-bold">
+            Submissions export
+            {selectedStudent
+              ? ` — ${selectedStudent.displayName}`
+              : " — all students"}
+          </h1>
+          <p className="text-sm text-slate-600">
+            Generated {new Date().toLocaleString()} · {filtered.length} row(s)
+          </p>
+        </div>
+
+        <div className="no-print flex flex-wrap gap-2 items-center justify-between">
           <div className="flex flex-wrap gap-2 items-center">
             <span className="text-xs text-slate-500 mr-2">Filter student:</span>
             <button
@@ -207,20 +260,69 @@ export default function TrainerSubmissionsPage() {
               </button>
             ))}
           </div>
-          <button
-            type="button"
-            onClick={exportCsv}
-            disabled={loading || filtered.length === 0}
-            className="px-3 py-1.5 rounded-lg text-xs border border-slate-700 text-slate-300 hover:border-sky-500/40 hover:text-sky-300 disabled:opacity-40"
-            title="Download currently filtered submissions as CSV"
-          >
-            <i className="fa-solid fa-download mr-1.5" />
-            Export CSV
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={exportCsv}
+              disabled={loading || filtered.length === 0}
+              className="px-3 py-1.5 rounded-lg text-xs border border-slate-700 text-slate-300 hover:border-sky-500/40 hover:text-sky-300 disabled:opacity-40"
+              title="Download currently filtered submissions as CSV"
+            >
+              <i className="fa-solid fa-download mr-1.5" />
+              Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={exportPdf}
+              disabled={loading || filtered.length === 0}
+              className="px-3 py-1.5 rounded-lg text-xs border border-slate-700 text-slate-300 hover:border-sky-500/40 hover:text-sky-300 disabled:opacity-40"
+              title="Print / save as PDF (browser print dialog)"
+            >
+              <i className="fa-solid fa-file-pdf mr-1.5" />
+              Export PDF
+            </button>
+          </div>
         </div>
 
+        {studentFilter !== "all" ? (
+          <form
+            className="no-print bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-wrap items-end gap-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void sendProgressEmail();
+            }}
+          >
+            <label className="space-y-1 block flex-1 min-w-[14rem]">
+              <span className="text-xs text-slate-400">
+                Email progress for {selectedStudent?.displayName ?? "student"}
+              </span>
+              <input
+                type="email"
+                value={emailTo}
+                onChange={(e) => setEmailTo(e.target.value)}
+                required
+                placeholder="recipient@example.com"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={emailBusy}
+              className="px-3 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 disabled:opacity-60 text-white text-xs"
+            >
+              {emailBusy ? "Sending…" : "Send progress email"}
+            </button>
+            {emailMessage ? (
+              <span className="text-xs text-emerald-400">{emailMessage}</span>
+            ) : null}
+            {emailError ? (
+              <span className="text-xs text-rose-400">{emailError}</span>
+            ) : null}
+          </form>
+        ) : null}
+
         {aiError ? (
-          <p className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+          <p className="no-print text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
             {aiError}
           </p>
         ) : null}
@@ -311,7 +413,7 @@ export default function TrainerSubmissionsPage() {
                 </div>
 
                 {s.question.type === "FREE_TEXT" ? (
-                  <div className="bg-slate-950 border border-violet-500/20 rounded-xl p-4 space-y-3">
+                  <div className="no-print bg-slate-950 border border-violet-500/20 rounded-xl p-4 space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <h4 className="text-xs font-bold text-violet-300">
                         AI assist (trainer only)
@@ -355,7 +457,10 @@ export default function TrainerSubmissionsPage() {
           </section>
         )}
 
-        <Link href="/trainer" className="text-xs text-slate-500 hover:text-sky-300">
+        <Link
+          href="/trainer"
+          className="no-print text-xs text-slate-500 hover:text-sky-300"
+        >
           ← Back to overview
         </Link>
       </main>
