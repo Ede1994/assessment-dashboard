@@ -93,6 +93,10 @@ MRI-heavy filter used for `student2` seed and CT-track preset (regex-ish on titl
 
 ## Session log
 
+### 2026-08-05 — Expand TODO with QoL / feature ideas
+- Reviewed progress: auth, CRUD, assignments/presets, MC grade, AI assist, export/email, CI/Docker, ~110 questions.
+- Expanded Open with product (grading, cohorts, clone, exam mode), student/trainer UX QoL, polish/a11y, and engineering follow-ups. Kept existing media/import/dashboard/due-date items.
+
 ### 2026-08-05 — Import Medical Imaging Interview Q&A
 - Source: https://github.com/amine0110/Medical-Imaging-Interview-Questions-Answers (full answers from pycad.co; GitHub README truncates).
 - Added `prisma/interviewQuestionsEn.ts` (36 FREE_TEXT items, round labels `MI-Q*`); wired into `seed.ts`.

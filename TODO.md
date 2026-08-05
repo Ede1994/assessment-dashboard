@@ -6,19 +6,61 @@ Last updated: 2026-08-05
 
 ---
 
+## Progress snapshot (2026-08-05)
+
+Solid prototype: auth, question/category CRUD, per-student assignments + presets, MC auto-grade + scoreboard, AI free-text assist, CSV/PDF export, progress email, Docker, CI, ~110 seeded questions. Main gaps now are **media**, **richer student progress**, **trainer grading of free-text**, and **UI QoL** (filters, toasts, navigation, a11y).
+
+---
+
 ## Open
 
 ### Product / features
-_(none)_
+- [ ] Add images and videos to questions and solutions (CT/MRI scans, diagrams, etc.)
+- [ ] Question editor: upload media (image/video) for prompt and/or solution
+- [ ] Question bank import/export (JSON/CSV) for content management without reseed
+- [ ] Student dashboard: progress overview, answered/unanswered breakdown, assignment summary
+- [ ] Assignment due dates + progress tracking (% complete; optional time spent)
+- [ ] Trainer free-text grade: score / pass-fail + short comment on submission
+- [ ] Optional “release feedback” so students see trainer notes (and/or solution) after review
+- [ ] Assignment cohorts: apply the same question set to many students in one action
+- [ ] Copy assignments student A → B (or save/load a named assignment template)
+- [ ] Clone/duplicate question in the bank editor
+- [ ] Optional exam mode: soft-lock MC after first submit (vs practice retries)
+
+### Student UX / QoL
+- [ ] Filters on `/student`: answered / unanswered / incorrect; sort by category or recent
+- [ ] Next / previous assigned question on the answer page
+- [ ] Local draft autosave for free-text before Submit
+- [ ] Header shows logged-in name + compact progress (including mobile)
+- [ ] “Resume next unanswered” CTA when returning to `/student`
+- [ ] Student nav parity with trainer (clear section links, not only Account / Log out)
+- [ ] Stronger empty states when no assignments / no search matches (with recovery CTAs)
+
+### Trainer UX / QoL
+- [ ] Click scoreboard row → `/trainer/submissions` filtered to that student
+- [ ] Submissions filters: category, type, free-text-only, missing AI review
+- [ ] Compact question-bank table/list view (alongside cards) + bulk actions
+- [ ] Preview-as-student (prompt/choices without solutions)
+- [ ] Unsaved-changes warning on assignments page and question editor
+- [ ] Fix overview “Questions in bank” to use real bank count (not assignment-scoped total)
+- [ ] Confirm modals instead of `window.confirm` (delete user/category/question)
+
+### UI polish / accessibility
+- [ ] Shared toast/snackbar for save, delete, export, email success/errors
+- [ ] Keyboard QoL: `/` focus search, `j`/`k` list navigation, `Esc` dismiss dialogs
+- [ ] Basic a11y pass: labels, live regions for save status, focus traps, reduced-motion
+- [ ] Mobile polish: sticky filters, denser cards, always-visible progress chip
+- [ ] Loading skeletons instead of plain “Loading…” text
 
 ### Engineering / polish
-_(none)_
+- [ ] Expand automated tests beyond current API smoke tests (assignments, users, categories, rate-limit)
+- [ ] Persist SQLite volume docs/defaults for Docker (answers survive container recreate)
+- [ ] Optional light theme toggle (currently dark-only)
 
 ### Content
 - [ ] Review remaining near-duplicates between template bank and tutor bank
 - [ ] Add more CT-only / MRI-only tagged questions for cleaner assignment filters
 - [ ] Optional: import more modules from other tutor HTML files if provided
-- [x] Import Medical Imaging Interview Q&A (amine0110) — done 2026-08-05; near-duplicates skipped
 
 ---
 
