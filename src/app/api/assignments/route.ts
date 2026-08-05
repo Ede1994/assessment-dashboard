@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
         displayName: true,
         _count: { select: { assignments: true } },
         assignments: {
-          select: { dueAt: true },
+          select: { dueAt: true, examMode: true },
           take: 1,
           orderBy: { assignedAt: "desc" },
         },
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     }),
     prisma.questionAssignment.findMany({
       where: studentId ? { userId: studentId } : undefined,
-      select: { userId: true, questionId: true, dueAt: true },
+      select: { userId: true, questionId: true, dueAt: true, examMode: true },
     }),
   ]);
 
@@ -65,6 +65,7 @@ export async function GET(request: NextRequest) {
       assignedCount: s._count.assignments,
       totalQuestions,
       dueAt: s.assignments[0]?.dueAt ?? null,
+      examMode: Boolean(s.assignments[0]?.examMode),
     })),
     categories,
     questions,
@@ -74,7 +75,7 @@ export async function GET(request: NextRequest) {
 
 /**
  * Trainer: replace assignment set for one or many students.
- * Body: { studentId? | studentIds[], questionIds[], dueAt? }
+ * Body: { studentId? | studentIds[], questionIds[], dueAt?, examMode? }
  */
 export async function PUT(request: Request) {
   const user = await getCurrentUser();
@@ -103,6 +104,7 @@ export async function PUT(request: Request) {
     );
   }
   const dueAt = dueParsed === undefined ? null : dueParsed;
+  const examMode = Boolean(body?.examMode);
 
   if (studentIds.length === 0 || questionIds === null) {
     return NextResponse.json(
@@ -146,6 +148,7 @@ export async function PUT(request: Request) {
           userId,
           questionId,
           dueAt,
+          examMode,
         })),
       ),
     });
@@ -157,5 +160,6 @@ export async function PUT(request: Request) {
     assignedCount: uniqueIds.length,
     studentCount: studentIds.length,
     dueAt,
+    examMode,
   });
 }

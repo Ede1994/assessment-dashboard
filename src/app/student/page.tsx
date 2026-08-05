@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AppHeader } from "@/components/AppHeader";
+import { LoadingSkeleton } from "@/components/LoadingSkeleton";
 import { MathText } from "@/components/MathText";
 import { categoryColors } from "@/lib/colors";
 import type { CategoryDto, ProgressDto, QuestionListItem } from "@/lib/types";
@@ -282,7 +283,7 @@ export default function StudentDashboardPage() {
         </div>
 
         {loading ? (
-          <p className="text-sm text-slate-400">Loading questions…</p>
+          <LoadingSkeleton rows={4} label="Loading questions" />
         ) : error ? (
           <p className="text-sm text-rose-400">{error}</p>
         ) : questions.length === 0 ? (

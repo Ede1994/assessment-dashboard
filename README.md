@@ -124,7 +124,9 @@ Trainers manage the bank in the UI (no seed edit required for day-to-day changes
 
 - **New:** `/trainer/questions/new`
 - **Edit:** `/trainer/questions/[id]/edit` (or Edit on each card)
-- **Delete:** Delete on each card (removes solution, choices, assignments, submissions for that question)
+- **Delete / Clone / Preview:** on each card or in compact list view
+- **Import / Export:** JSON bank dump via Export JSON / Import JSON on `/trainer/questions` (categories matched by slug)
+- **Media:** upload image/video in the editor (stored under `/public/uploads`, inserted as `![alt](/uploads/…)` markdown; videos render with controls)
 
 Each question stores prompt, optional code snippet, type (free text / MC + choices), and trainer-only ideal answer / explanation / code solution.
 
@@ -132,7 +134,7 @@ Seed data still bootstraps categories and the initial bank via `npm run db:seed`
 
 ## Assignments
 
-Trainers open **Assign tasks** (`/trainer/assignments`), pick a student, then select individual questions, whole categories (+/−), or named presets (**CT-track**, **MRI-track**, **PyTorch-only**). Optional **due date**, **copy from another student**, and **cohort** multi-select apply the same set to several students at once. Saving replaces each target student’s assignment set. Students with no assignments temporarily see the full bank; due dates appear on the student dashboard with overdue highlighting.
+Trainers open **Assign tasks** (`/trainer/assignments`), pick a student, then select individual questions, whole categories (+/−), or named presets (**CT-track**, **MRI-track**, **PyTorch-only**). Optional **due date**, **exam mode** (soft-locks MC after first submit), **copy from another student**, and **cohort** multi-select apply the same set to several students at once. Saving replaces each target student’s assignment set. Students with no assignments temporarily see the full bank; due dates appear on the student dashboard with overdue highlighting.
 
 ## Categories
 
@@ -213,7 +215,13 @@ docker run --rm -p 3000:3000 \
   assessment-dashboard
 ```
 
-The image ships a seeded SQLite DB. To persist answers across container recreations, bind-mount the DB file (see comment in `docker-compose.yml`).
+The image ships a seeded SQLite DB. Compose mounts `./data/dev.db` and `./data/uploads` by default so answers and trainer media survive container recreate (create the host files/dirs first if needed).
+
+```bash
+mkdir -p data/uploads
+touch data/dev.db   # optional; container may create the DB on first run via seed
+docker compose up --build
+```
 
 ## Automated tests
 

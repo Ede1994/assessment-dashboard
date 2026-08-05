@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState, type ReactNode } from "react";
+import { FormEvent, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppHeader } from "@/components/AppHeader";
@@ -20,6 +20,66 @@ const emptyChoice = (): ChoiceDraft => ({ label: "", isCorrect: false });
 
 const inputClass =
   "w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500";
+
+const MEDIA_ACCEPT =
+  "image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm";
+
+async function uploadMedia(file: File): Promise<{ markdown: string; url: string }> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch("/api/media", { method: "POST", body: form });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Upload failed");
+  return { markdown: data.markdown as string, url: data.url as string };
+}
+
+function MediaUploadButton({
+  onInserted,
+  toast,
+}: {
+  onInserted: (markdown: string) => void;
+  toast: (message: string, type?: "success" | "error" | "info") => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setBusy(true);
+    try {
+      const { markdown } = await uploadMedia(file);
+      onInserted(markdown);
+      toast("Media inserted.", "success");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Upload failed", "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={MEDIA_ACCEPT}
+        className="hidden"
+        onChange={(e) => void onFileChange(e)}
+      />
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => inputRef.current?.click()}
+        className="text-[11px] px-2 py-0.5 rounded-md border border-slate-700 text-slate-400 hover:text-sky-300 hover:border-sky-500/40 disabled:opacity-50 inline-flex items-center gap-1"
+      >
+        <i className="fa-solid fa-image" />
+        {busy ? "Uploading…" : "Insert media"}
+      </button>
+    </>
+  );
+}
 
 function snapshot(data: {
   categoryId: string;
@@ -334,7 +394,19 @@ export function QuestionEditor({ mode, questionId }: QuestionEditorProps) {
             </Field>
           </div>
 
-          <Field label="Prompt / scenario (KaTeX $...$ supported)">
+          <Field
+            label="Prompt / scenario (KaTeX $...$ supported)"
+            labelAction={
+              <MediaUploadButton
+                toast={toast}
+                onInserted={(markdown) =>
+                  setPrompt((prev) =>
+                    prev.trim() ? `${prev}\n\n${markdown}` : markdown,
+                  )
+                }
+              />
+            }
+          >
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
@@ -342,6 +414,11 @@ export function QuestionEditor({ mode, questionId }: QuestionEditorProps) {
               required
             />
           </Field>
+          <p className="text-[11px] text-slate-500 -mt-2">
+            Images/videos insert as markdown{" "}
+            <code className="text-slate-400">![alt](/uploads/…)</code> and render
+            for students.
+          </p>
 
           <Field label="Code snippet shown to student (optional)">
             <textarea
@@ -411,7 +488,19 @@ export function QuestionEditor({ mode, questionId }: QuestionEditorProps) {
             </div>
           ) : null}
 
-          <Field label="Ideal answer (trainer only)">
+          <Field
+            label="Ideal answer (trainer only)"
+            labelAction={
+              <MediaUploadButton
+                toast={toast}
+                onInserted={(markdown) =>
+                  setIdealAnswer((prev) =>
+                    prev.trim() ? `${prev}\n\n${markdown}` : markdown,
+                  )
+                }
+              />
+            }
+          >
             <textarea
               value={idealAnswer}
               onChange={(e) => setIdealAnswer(e.target.value)}
@@ -419,7 +508,19 @@ export function QuestionEditor({ mode, questionId }: QuestionEditorProps) {
               required
             />
           </Field>
-          <Field label="Explanation (trainer only)">
+          <Field
+            label="Explanation (trainer only)"
+            labelAction={
+              <MediaUploadButton
+                toast={toast}
+                onInserted={(markdown) =>
+                  setExplanation((prev) =>
+                    prev.trim() ? `${prev}\n\n${markdown}` : markdown,
+                  )
+                }
+              />
+            }
+          >
             <textarea
               value={explanation}
               onChange={(e) => setExplanation(e.target.value)}
@@ -476,14 +577,19 @@ export function QuestionEditor({ mode, questionId }: QuestionEditorProps) {
 
 function Field({
   label,
+  labelAction,
   children,
 }: {
   label: string;
+  labelAction?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <label className="block space-y-1.5">
-      <span className="text-xs font-medium text-slate-400">{label}</span>
+      <span className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium text-slate-400">{label}</span>
+        {labelAction}
+      </span>
       {children}
     </label>
   );

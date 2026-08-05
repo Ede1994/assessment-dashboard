@@ -12,6 +12,7 @@ services:
       HOSTNAME: 0.0.0.0
       PORT: "3000"
     restart: unless-stopped
-    # Optional: persist SQLite across recreations (bind-mount a host file):
-    # volumes:
-    #   - ./data/dev.db:/app/prisma/dev.db
+    # Persist SQLite (and uploads) across container recreations:
+    volumes:
+      - ./data/dev.db:/app/prisma/dev.db
+      - ./data/uploads:/app/public/uploads

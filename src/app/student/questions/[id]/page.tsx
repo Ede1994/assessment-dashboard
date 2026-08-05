@@ -4,12 +4,15 @@ import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
+import { LoadingSkeleton } from "@/components/LoadingSkeleton";
 import { MathText } from "@/components/MathText";
 import { categoryColors } from "@/lib/colors";
 import type { ChoiceDto, QuestionListItem, SubmissionDto } from "@/lib/types";
 
 type QuestionDetail = Omit<QuestionListItem, "answered"> & {
   submission: SubmissionDto | null;
+  examMode?: boolean;
+  mcLocked?: boolean;
 };
 
 function draftKey(questionId: string) {
@@ -30,11 +33,14 @@ export default function StudentQuestionPage() {
   const [prevId, setPrevId] = useState<string | null>(null);
   const [nextId, setNextId] = useState<string | null>(null);
   const [draftHint, setDraftHint] = useState("");
+  const [mcLocked, setMcLocked] = useState(false);
+  const [examMode, setExamMode] = useState(false);
   const [progress, setProgress] = useState<{ answered: number; total: number } | null>(
     null,
   );
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadedId = useRef<string | null>(null);
+  const textRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,6 +62,8 @@ export default function StudentQuestionPage() {
         setMcCorrect(
           typeof data.mcCorrect === "boolean" ? data.mcCorrect : null,
         );
+        setMcLocked(Boolean(data.mcLocked));
+        setExamMode(Boolean(data.examMode));
 
         const saved = data.submission?.textAnswer ?? "";
         let initialText = saved;
@@ -125,9 +133,33 @@ export default function StudentQuestionPage() {
     };
   }, [textAnswer, question]);
 
+  useEffect(() => {
+    const el = textRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.max(el.scrollHeight, 160)}px`;
+  }, [textAnswer, question?.id]);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!question || mcLocked || saving) return;
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (question.type === "MULTIPLE_CHOICE") {
+        if (tag === "INPUT" || tag === "TEXTAREA") return;
+        const n = Number(e.key);
+        if (n >= 1 && n <= question.choices.length) {
+          e.preventDefault();
+          setSelectedChoiceId(question.choices[n - 1].id);
+        }
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [question, mcLocked, saving]);
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!question) return;
+    if (!question || mcLocked) return;
     setSaving(true);
     setMessage("");
     setError("");
@@ -156,11 +188,20 @@ export default function StudentQuestionPage() {
       setDraftHint("");
       if (question.type === "MULTIPLE_CHOICE" && data.grading) {
         setMcCorrect(Boolean(data.grading.isCorrect));
-        setMessage(
-          data.grading.isCorrect
-            ? "Saved — correct."
-            : "Saved — incorrect. You can change your answer and try again.",
-        );
+        if (examMode || data.examMode) {
+          setMcLocked(true);
+          setMessage(
+            data.grading.isCorrect
+              ? "Saved — correct. Exam mode locks this answer."
+              : "Saved — incorrect. Exam mode locks this answer.",
+          );
+        } else {
+          setMessage(
+            data.grading.isCorrect
+              ? "Saved — correct."
+              : "Saved — incorrect. You can change your answer and try again.",
+          );
+        }
       } else {
         setMessage("Answer saved.");
       }
@@ -168,6 +209,7 @@ export default function StudentQuestionPage() {
         prev
           ? {
               ...prev,
+              mcLocked: examMode && question.type === "MULTIPLE_CHOICE",
               submission: {
                 ...(prev.submission ?? {
                   id: data.submission?.id ?? "",
@@ -179,7 +221,6 @@ export default function StudentQuestionPage() {
                   question.type === "FREE_TEXT" ? textAnswer.trim() : null,
                 selectedChoiceId:
                   question.type === "MULTIPLE_CHOICE" ? selectedChoiceId : null,
-                // Revising clears released trainer feedback.
                 trainerScore: null,
                 trainerPassed: null,
                 trainerComment: null,
@@ -205,7 +246,9 @@ export default function StudentQuestionPage() {
           badge="Student"
           nav={[{ href: "/student", label: "My tasks", icon: "fa-list-check" }]}
         />
-        <p className="p-8 text-slate-400 text-sm">Loading question…</p>
+        <div className="max-w-3xl mx-auto px-4 lg:px-8 py-8">
+          <LoadingSkeleton rows={2} label="Loading question" />
+        </div>
       </div>
     );
   }
@@ -297,6 +340,11 @@ export default function StudentQuestionPage() {
             <span className="text-xs text-slate-500 border border-slate-800 px-2 py-1 rounded-full">
               {question.type === "FREE_TEXT" ? "Free text" : "Multiple choice"}
             </span>
+            {examMode ? (
+              <span className="text-xs px-2.5 py-1 rounded-full border border-amber-500/30 text-amber-300 bg-amber-500/10">
+                Exam mode
+              </span>
+            ) : null}
             {question.type === "MULTIPLE_CHOICE" && mcCorrect != null ? (
               <span
                 className={`text-xs px-2.5 py-1 rounded-full border ${
@@ -363,34 +411,62 @@ export default function StudentQuestionPage() {
           <form onSubmit={onSubmit} className="space-y-4 border-t border-slate-800 pt-5">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-sm font-semibold text-sky-300">Your answer</h3>
-              {draftHint ? (
-                <span className="text-[11px] text-slate-500">{draftHint}</span>
-              ) : null}
+              <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                {draftHint ? <span>{draftHint}</span> : null}
+                {question.type === "MULTIPLE_CHOICE" && !mcLocked ? (
+                  <span>Keys 1–{question.choices.length} to select</span>
+                ) : null}
+                {question.type === "FREE_TEXT" ? (
+                  <span>Ctrl/⌘+Enter to save</span>
+                ) : null}
+              </div>
             </div>
+
+            {mcLocked ? (
+              <p className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                Exam mode locked this multiple-choice answer after your first
+                submit.
+              </p>
+            ) : null}
 
             {question.type === "FREE_TEXT" ? (
               <textarea
+                ref={textRef}
                 value={textAnswer}
                 onChange={(e) => setTextAnswer(e.target.value)}
-                rows={8}
+                onKeyDown={(e) => {
+                  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                    e.preventDefault();
+                    e.currentTarget.form?.requestSubmit();
+                  }
+                }}
+                rows={6}
                 placeholder="Write your answer here…"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-sky-500 resize-y"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-sky-500 resize-none overflow-hidden min-h-40"
               />
             ) : (
               <div className="space-y-2">
-                {question.choices.map((choice: ChoiceDto) => (
+                {question.choices.map((choice: ChoiceDto, idx) => (
                   <label
                     key={choice.id}
-                    className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition ${
+                    className={`flex items-start gap-3 p-3 rounded-xl border transition ${
+                      mcLocked
+                        ? "cursor-not-allowed opacity-90"
+                        : "cursor-pointer"
+                    } ${
                       selectedChoiceId === choice.id
-                        ? "border-sky-500/50 bg-sky-500/10"
+                        ? "border-sky-500/50 bg-sky-500/10 ring-1 ring-sky-500/30"
                         : "border-slate-800 bg-slate-950 hover:border-slate-700"
                     }`}
                   >
+                    <span className="mt-0.5 text-[10px] font-bold text-slate-500 w-4">
+                      {idx + 1}
+                    </span>
                     <input
                       type="radio"
                       name="choice"
                       className="mt-1"
+                      disabled={mcLocked}
                       checked={selectedChoiceId === choice.id}
                       onChange={() => setSelectedChoiceId(choice.id)}
                     />
@@ -401,19 +477,23 @@ export default function StudentQuestionPage() {
             )}
 
             {error ? (
-              <p className="text-xs text-rose-400">{error}</p>
+              <p className="text-xs text-rose-400" role="alert">
+                {error}
+              </p>
             ) : null}
             {message ? (
-              <p className="text-xs text-emerald-400">{message}</p>
+              <p className="text-xs text-emerald-400" aria-live="polite">
+                {message}
+              </p>
             ) : null}
 
             <div className="flex flex-wrap gap-3">
               <button
                 type="submit"
-                disabled={saving}
+                disabled={saving || mcLocked}
                 className="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 disabled:opacity-60 text-white text-sm font-medium transition"
               >
-                {saving ? "Saving…" : "Save answer"}
+                {saving ? "Saving…" : mcLocked ? "Locked" : "Save answer"}
               </button>
               <Link
                 href="/student"

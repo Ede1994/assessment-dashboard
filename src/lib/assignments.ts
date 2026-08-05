@@ -20,3 +20,17 @@ export async function studentCanAccessQuestion(
   if (ids === null) return true;
   return ids.includes(questionId);
 }
+
+/** True when this student has exam-mode assignment for the question (MC soft-lock). */
+export async function studentHasExamMode(
+  userId: string,
+  questionId: string,
+): Promise<boolean> {
+  const row = await prisma.questionAssignment.findUnique({
+    where: {
+      userId_questionId: { userId, questionId },
+    },
+    select: { examMode: true },
+  });
+  return Boolean(row?.examMode);
+}

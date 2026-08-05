@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { QuestionType } from "@/generated/prisma/client";
-import { studentCanAccessQuestion } from "@/lib/assignments";
+import { studentCanAccessQuestion, studentHasExamMode } from "@/lib/assignments";
 import { getAssignedQuestionIds } from "@/lib/assignments";
 import { computeProgressScore } from "@/lib/grading";
 
@@ -65,6 +65,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid choice." }, { status: 400 });
     }
     isCorrect = choice.isCorrect;
+
+    // Exam mode: soft-lock MC after the first submit.
+    const examMode = await studentHasExamMode(user.id, questionId);
+    if (examMode) {
+      const existing = await prisma.submission.findUnique({
+        where: { userId_questionId: { userId: user.id, questionId } },
+        select: { id: true },
+      });
+      if (existing) {
+        return NextResponse.json(
+          {
+            error:
+              "Exam mode is on — multiple-choice answers cannot be changed after the first submit.",
+          },
+          { status: 403 },
+        );
+      }
+    }
   }
 
   const submission = await prisma.submission.upsert({

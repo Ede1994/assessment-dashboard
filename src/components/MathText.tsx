@@ -3,7 +3,9 @@
 import { useEffect, useRef } from "react";
 import katex from "katex";
 
-/** Renders text with $...$ / $$...$$ KaTeX and optional ![alt](url) images. */
+const VIDEO_EXT = /\.(mp4|webm|ogg)(\?.*)?$/i;
+
+/** Renders text with $...$ / $$...$$ KaTeX and optional ![alt](url) images/videos. */
 export function MathText({
   text,
   className = "",
@@ -20,7 +22,7 @@ export function MathText({
     type Part =
       | { type: "text"; value: string }
       | { type: "math"; value: string; display: boolean }
-      | { type: "image"; alt: string; src: string };
+      | { type: "media"; alt: string; src: string };
 
     const parts: Part[] = [];
     const regex = /\$\$([\s\S]+?)\$\$|\$([^$\n]+?)\$|!\[([^\]]*)\]\(([^)\s]+)\)/g;
@@ -35,7 +37,7 @@ export function MathText({
       } else if (match[2] !== undefined) {
         parts.push({ type: "math", value: match[2], display: false });
       } else {
-        parts.push({ type: "image", alt: match[3] ?? "", src: match[4] ?? "" });
+        parts.push({ type: "media", alt: match[3] ?? "", src: match[4] ?? "" });
       }
       last = match.index + match[0].length;
     }
@@ -49,14 +51,25 @@ export function MathText({
         const span = document.createElement("span");
         span.textContent = part.value;
         el.appendChild(span);
-      } else if (part.type === "image") {
-        const img = document.createElement("img");
-        img.src = part.src;
-        img.alt = part.alt || "Question figure";
-        img.className =
-          "my-3 max-w-full rounded-lg border border-slate-700 bg-slate-950";
-        img.loading = "lazy";
-        el.appendChild(img);
+      } else if (part.type === "media") {
+        if (VIDEO_EXT.test(part.src)) {
+          const video = document.createElement("video");
+          video.src = part.src;
+          video.controls = true;
+          video.preload = "metadata";
+          video.className =
+            "my-3 max-w-full rounded-lg border border-slate-700 bg-slate-950";
+          if (part.alt) video.setAttribute("aria-label", part.alt);
+          el.appendChild(video);
+        } else {
+          const img = document.createElement("img");
+          img.src = part.src;
+          img.alt = part.alt || "Question figure";
+          img.className =
+            "my-3 max-w-full rounded-lg border border-slate-700 bg-slate-950";
+          img.loading = "lazy";
+          el.appendChild(img);
+        }
       } else {
         const span = document.createElement(part.display ? "div" : "span");
         try {

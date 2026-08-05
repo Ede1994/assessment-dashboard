@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { studentCanAccessQuestion } from "@/lib/assignments";
+import { studentCanAccessQuestion, studentHasExamMode } from "@/lib/assignments";
 import { parseQuestionBody } from "@/lib/questionInput";
 import { QuestionType } from "@/generated/prisma/client";
 
@@ -71,6 +71,15 @@ export async function GET(_request: Request, { params }: Params) {
       }
     : null;
 
+  const examMode =
+    user.role === "STUDENT"
+      ? await studentHasExamMode(user.id, id)
+      : false;
+  const mcLocked =
+    examMode &&
+    question.type === QuestionType.MULTIPLE_CHOICE &&
+    Boolean(submission);
+
   return NextResponse.json({
     id: question.id,
     title: question.title,
@@ -90,6 +99,8 @@ export async function GET(_request: Request, { params }: Params) {
     })),
     solution: isTrainer ? question.solution : undefined,
     mcCorrect,
+    examMode,
+    mcLocked,
     submission,
   });
 }

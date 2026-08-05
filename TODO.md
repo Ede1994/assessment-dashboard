@@ -8,35 +8,30 @@ Last updated: 2026-08-05
 
 ## Progress snapshot (2026-08-05)
 
-Solid prototype: auth, CRUD, assignments (presets/due dates/cohorts/copy), MC + free-text grading, AI assist, exports/email, student progress QoL, toasts/confirm dialogs, Docker, CI, ~110 questions. Main gaps now are **media**, **question bank import/export**, and remaining **a11y / keyboard / mobile polish**.
+Solid prototype: auth, CRUD, assignments (due/cohort/exam), media uploads, bank import/export + list/preview, MC + free-text grading, AI assist, student QoL, Docker volume mounts, CI, ~110 questions. Main gaps now are **named assignment templates**, deeper **a11y/keyboard**, and **content tagging cleanup**.
 
 ---
 
 ## Open
 
 ### Product / features
-- [ ] Add images and videos to questions and solutions (CT/MRI scans, diagrams, etc.)
-- [ ] Question editor: upload media (image/video) for prompt and/or solution
-- [ ] Question bank import/export (JSON/CSV) for content management without reseed
-- [ ] Optional exam mode: soft-lock MC after first submit (vs practice retries)
 - [ ] Named assignment templates (persist presets beyond CT/MRI/PyTorch built-ins)
+- [ ] CSV export variant of question bank (JSON import/export already shipped)
+- [ ] Optional time-spent tracking on assignments
 
 ### Student UX / QoL
-- [ ] (none currently)
+- [ ] (MC keys + autosize textarea + Ctrl/⌘+Enter shipped)
 
 ### Trainer UX / QoL
-- [ ] Compact question-bank table/list view (alongside cards) + bulk actions
-- [ ] Preview-as-student (prompt/choices without solutions)
+- [ ] (bank list/bulk/preview/import-export shipped)
 
 ### UI polish / accessibility
-- [ ] Keyboard QoL: `/` focus search, `j`/`k` list navigation, `Esc` dismiss dialogs
-- [ ] Basic a11y pass: labels, live regions for save status, focus traps, reduced-motion
+- [ ] Keyboard QoL: `/` focus search, `j`/`k` list navigation (Esc already on confirm dialogs)
+- [ ] Basic a11y pass: focus traps, reduced-motion
 - [ ] Mobile polish: sticky filters, denser cards, always-visible progress chip
-- [ ] Loading skeletons instead of plain “Loading…” text
 
 ### Engineering / polish
-- [ ] Expand automated tests beyond current API smoke tests (assignments, users, categories, rate-limit, grade, clone)
-- [ ] Persist SQLite volume docs/defaults for Docker (answers survive container recreate)
+- [ ] Expand automated tests beyond current API smoke tests (assignments, users, categories, rate-limit, grade, clone, media, import)
 - [ ] Optional light theme toggle (currently dark-only)
 
 ### Content
@@ -47,6 +42,14 @@ Solid prototype: auth, CRUD, assignments (presets/due dates/cohorts/copy), MC + 
 ---
 
 ## Done
+
+### Media, bank import/export, exam mode, bank list (2026-08-05)
+- [x] Media upload API (`/api/media`) + editor insert; MathText renders images/videos
+- [x] Question bank JSON export/import + bulk delete
+- [x] Compact list view + preview-as-student on `/trainer/questions`
+- [x] Exam mode soft-locks MC after first submit (`QuestionAssignment.examMode`)
+- [x] Student answer UX: MC 1–n keys, autosize textarea, Ctrl/⌘+Enter; loading skeletons
+- [x] Docker Compose persists `data/dev.db` + `data/uploads`
 
 ### Assignment cohorts + due dates + trainer QoL (2026-08-05)
 - [x] Assignment `dueAt` on QuestionAssignment; student dashboard due/overdue + % complete

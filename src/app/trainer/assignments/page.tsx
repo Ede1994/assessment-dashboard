@@ -18,6 +18,7 @@ type Student = {
   assignedCount: number;
   totalQuestions: number;
   dueAt: string | null;
+  examMode?: boolean;
 };
 
 type Category = {
@@ -65,6 +66,8 @@ export default function TrainerAssignmentsPage() {
   const [savedSelected, setSavedSelected] = useState<Set<string>>(new Set());
   const [dueAt, setDueAt] = useState("");
   const [savedDueAt, setSavedDueAt] = useState("");
+  const [examMode, setExamMode] = useState(false);
+  const [savedExamMode, setSavedExamMode] = useState(false);
   const [cohortIds, setCohortIds] = useState<Set<string>>(new Set());
   const [copyFromId, setCopyFromId] = useState("");
   const [filterCat, setFilterCat] = useState("all");
@@ -74,7 +77,9 @@ export default function TrainerAssignmentsPage() {
   const [error, setError] = useState("");
 
   const dirty =
-    !setEquals(selected, savedSelected) || dueAt !== savedDueAt;
+    !setEquals(selected, savedSelected) ||
+    dueAt !== savedDueAt ||
+    examMode !== savedExamMode;
 
   useUnsavedChangesWarning(dirty);
 
@@ -106,6 +111,14 @@ export default function TrainerAssignmentsPage() {
     const dueInput = toDateInputValue(due);
     setDueAt(dueInput);
     setSavedDueAt(dueInput);
+    const exam =
+      Boolean(
+        (data.assignments as { userId: string; examMode?: boolean }[]).find(
+          (a) => a.userId === sid,
+        )?.examMode,
+      ) || Boolean(data.students.find((s: Student) => s.id === sid)?.examMode);
+    setExamMode(exam);
+    setSavedExamMode(exam);
     setCohortIds(new Set());
   }
 
@@ -151,6 +164,13 @@ export default function TrainerAssignmentsPage() {
       const dueInput = toDateInputValue(due);
       setDueAt(dueInput);
       setSavedDueAt(dueInput);
+      const exam =
+        Boolean(
+          (data.assignments as { examMode?: boolean }[]).find((a) => a.examMode)
+            ?.examMode,
+        ) || Boolean(data.students.find((s: Student) => s.id === id)?.examMode);
+      setExamMode(exam);
+      setSavedExamMode(exam);
       setStudents(data.students);
       setCohortIds(new Set());
     } catch {
@@ -261,6 +281,7 @@ export default function TrainerAssignmentsPage() {
           studentIds: targets,
           questionIds: [...selected],
           dueAt: dueAt ? new Date(`${dueAt}T23:59:59`).toISOString() : null,
+          examMode,
         }),
       });
       const data = await res.json();
@@ -350,6 +371,16 @@ export default function TrainerAssignmentsPage() {
                   onChange={(e) => setDueAt(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500"
                 />
+              </label>
+              <label className="flex items-end gap-2 pb-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={examMode}
+                  onChange={(e) => setExamMode(e.target.checked)}
+                />
+                <span className="text-xs text-slate-300">
+                  Exam mode (lock MC after first submit)
+                </span>
               </label>
               <label className="space-y-1 block">
                 <span className="text-xs text-slate-400">

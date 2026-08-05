@@ -103,6 +103,7 @@ model QuestionAssignment {
   questionId String
   question   Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
   dueAt      DateTime?
+  examMode   Boolean   @default(false)
   assignedAt DateTime  @default(now())
 
   @@unique([userId, questionId])

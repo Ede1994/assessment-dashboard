@@ -52,3 +52,7 @@ next-env.d.ts
 prisma/dev.db
 prisma/test.db
 prisma/test.db-journal
+
+# trainer media uploads (keep directory via .gitkeep)
+/public/uploads/*
+!/public/uploads/.gitkeep

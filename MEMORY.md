@@ -55,9 +55,9 @@ Last updated: 2026-08-05
 /student                    → assigned questions + progress/filters/resume
 /student/questions/[id]     → answer form; next/prev; draft autosave; released feedback
 /trainer                    → overview + MC scoreboard (links to filtered submissions)
-/trainer/questions          → bank + ideal solutions (+ Clone)
+/trainer/questions          → bank cards/list, clone, preview, import/export, media
 /trainer/categories         → create / rename / delete empty categories
-/trainer/assignments        → pick questions (+ due date, cohort, copy-from)
+/trainer/assignments        → pick questions (+ due, exam mode, cohort, copy-from)
 /trainer/submissions        → student vs ideal + free-text grade/release (+ CSV/PDF)
 /trainer/users              → create / delete / reset password
 
@@ -70,7 +70,8 @@ API: /api/auth/*, /api/questions, /api/questions/[id]/clone, /api/submissions,
 - Prisma 7 needs `@prisma/adapter-better-sqlite3` + path helper in `src/lib/prisma.ts`.
 - Seed: `prisma/seed.ts` + `prisma/tutorQuestionsEn.ts`; run `npm run db:seed` or `db:reset`.
 - Submission trainer fields: `trainerScore`, `trainerPassed`, `trainerComment`, `feedbackReleased`, `trainerGradedAt`. Student revise clears them (same as AI feedback).
-- Assignment `dueAt` (per-student set, same on all rows). Cohort save via `studentIds[]` on PUT `/api/assignments`.
+- Assignment `dueAt` + `examMode` (per-student set). Cohort save via `studentIds[]` on PUT `/api/assignments`.
+- Trainer uploads land in `public/uploads` (gitignored except `.gitkeep`).
 
 ---
 
@@ -94,10 +95,19 @@ MRI-heavy filter used for `student2` seed and CT-track preset (regex-ish on titl
 - Font Awesome: CSS from `@fortawesome/fontawesome-free`; webfonts copied to `public/webfonts` by `scripts/copy-webfonts.mjs`. KaTeX via `MathText` client component.
 - Progress email needs `SMTP_HOST` + `SMTP_FROM` (optional user/pass/port).
 - `/trainer/submissions` uses `useSearchParams` — keep Suspense wrapper around the content component.
+- Docker Compose mounts `./data/dev.db` and `./data/uploads` for persistence.
 
 ---
 
 ## Session log
+
+### 2026-08-05 — Media upload, bank import/export, exam mode, list/preview
+- User asked to add the next features.
+- `/api/media` uploads to `public/uploads`; editor inserts markdown; MathText plays videos.
+- `/api/questions/export|import|bulk-delete`; bank UI: list view, bulk delete, preview-as-student.
+- `QuestionAssignment.examMode` soft-locks MC after first submit.
+- Student answer keys/autosize; LoadingSkeleton; Compose volumes for DB + uploads.
+- Build verified.
 
 ### 2026-08-05 — Assignment due dates/cohorts + trainer QoL polish
 - User asked to build the next features from TODO.
