@@ -140,7 +140,7 @@ Trainers manage categories in the UI at `/trainer/categories` (create / rename /
 
 ## Question bank content
 
-Seeded from the medical interview-prep template plus the Deep Learning in Medical Imaging tutor FAQ (English, near-duplicates skipped), plus an 8-question CT fundamentals quiz (`prisma/ctQuestionsEn.ts`, with FBP figure at `public/seed-assets/ct/fbp-reconstructions.png`). Categories: PyTorch, Python, medical data, AI/DL, DL fundamentals, CT & MRI, DICOM, governance/MDR, U-Net architectures.
+Seeded from the medical interview-prep template plus the Deep Learning in Medical Imaging tutor FAQ (English, near-duplicates skipped), plus an 8-question CT fundamentals quiz (`prisma/ctQuestionsEn.ts`, with FBP figure at `public/seed-assets/ct/fbp-reconstructions.png`), plus 36 free-text interview Q&As from [amine0110/Medical-Imaging-Interview-Questions-Answers](https://github.com/amine0110/Medical-Imaging-Interview-Questions-Answers) (`prisma/interviewQuestionsEn.ts`; skipped overlap on class imbalance, metrics overview, and U-Net). Categories: PyTorch, Python, medical data, AI/DL, DL fundamentals, CT & MRI, DICOM, governance/MDR, U-Net architectures.
 
 ## Useful scripts
 

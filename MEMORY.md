@@ -74,6 +74,7 @@ API: /api/auth/*, /api/questions, /api/submissions, /api/solutions (trainer), /a
 1. **Prep dashboard HTML** → original ~16 rounds (PyTorch OOM, DICOM resampling, GroupKFold, U-Net skip mismatch, STAPLE, etc.) translated/adapted + extra CT/MRI items.
 2. **Tutor HTML** `~/Downloads/deep_learning_medizin_tutor.html` → 41 quiz FAQ items; **39** imported in English; **skipped duplicates:** Q1.6 (log_softmax / numerical stability), Q2.4 (anisotropic 3D CNN — overlaps existing anisotropic U-Net topic).
 3. Categories include: `pytorch`, `python`, `medical-data`, `ai-dl`, `dl-basics`, `ct-mri`, `dicom`, `governance`, `architecture`.
+4. **Interview Q&A** [amine0110/Medical-Imaging-Interview-Questions-Answers](https://github.com/amine0110/Medical-Imaging-Interview-Questions-Answers) → `prisma/interviewQuestionsEn.ts` (36 items; skipped Q6/Q15/Q17/Q32).
 
 MRI-heavy filter used for `student2` seed and CT-track preset (regex-ish on title/tags/prompt): MRI, MRT, FLAIR, Nyúl, bias field, 2.5D, etc. — see `isMriHeavy()` in `src/lib/assignmentPresets.ts` (imported by seed).
 
@@ -91,6 +92,12 @@ MRI-heavy filter used for `student2` seed and CT-track preset (regex-ish on titl
 ---
 
 ## Session log
+
+### 2026-08-05 — Import Medical Imaging Interview Q&A
+- Source: https://github.com/amine0110/Medical-Imaging-Interview-Questions-Answers (full answers from pycad.co; GitHub README truncates).
+- Added `prisma/interviewQuestionsEn.ts` (36 FREE_TEXT items, round labels `MI-Q*`); wired into `seed.ts`.
+- Skipped near-duplicates vs existing bank: Q6 class imbalance, Q15/Q32 metrics overview, Q17 U-Net.
+- After pull: `npm run db:seed` (or `db:reset`) to load into local SQLite.
 
 ### 2026-08-05 — Proxy, FA webfonts, CI, rate-limit, PDF, progress email
 - User asked for next TODO items (engineering polish + remaining product export/email).

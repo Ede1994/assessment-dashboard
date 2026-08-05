@@ -4,6 +4,7 @@ import { PrismaClient, QuestionType, Role } from "../src/generated/prisma/client
 import path from "path";
 import { tutorQuestionsEn } from "./tutorQuestionsEn";
 import { ctQuestionsEn } from "./ctQuestionsEn";
+import { interviewQuestionsEn } from "./interviewQuestionsEn";
 import { hashPassword } from "../src/lib/password";
 import { isMriHeavy } from "../src/lib/assignmentPresets";
 
@@ -659,7 +660,7 @@ async function main() {
 
   // Merge tutor + CT quiz questions into category buckets (skip unknown slugs).
   const bySlug = new Map(categories.map((c) => [c.slug, c]));
-  for (const tq of [...tutorQuestionsEn, ...ctQuestionsEn]) {
+  for (const tq of [...tutorQuestionsEn, ...ctQuestionsEn, ...interviewQuestionsEn]) {
     const cat = bySlug.get(tq.categorySlug);
     if (!cat) {
       console.warn(`Unknown category for imported question: ${tq.categorySlug}`);
@@ -671,7 +672,7 @@ async function main() {
       roundLabel: tq.roundLabel,
       tags: tq.tags,
       type: tq.type,
-      choices: tq.choices,
+      choices: "choices" in tq ? tq.choices : undefined,
       idealAnswer: tq.idealAnswer,
       explanation: tq.explanation,
     });

@@ -18,10 +18,15 @@ _(none)_
 - [ ] Review remaining near-duplicates between template bank and tutor bank
 - [ ] Add more CT-only / MRI-only tagged questions for cleaner assignment filters
 - [ ] Optional: import more modules from other tutor HTML files if provided
+- [x] Import Medical Imaging Interview Q&A (amine0110) — done 2026-08-05; near-duplicates skipped
 
 ---
 
 ## Done
+
+### Content import — Medical Imaging Interview Q&A (2026-08-05)
+- [x] Import from https://github.com/amine0110/Medical-Imaging-Interview-Questions-Answers (full answers via pycad.co) → `prisma/interviewQuestionsEn.ts` (36 free-text Qs)
+- [x] Skipped near-duplicates: Q6 class imbalance, Q15/Q32 metrics overview, Q17 U-Net
 
 ### Engineering polish + PDF + progress email (2026-08-05)
 - [x] Migrate `src/middleware.ts` → `src/proxy.ts` (Next 16 `proxy` convention)
