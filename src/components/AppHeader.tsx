@@ -1,18 +1,55 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
+type NavItem = {
+  href: string;
+  label: string;
+  icon?: string;
+  active?: boolean;
+};
+
+type ProgressChip = {
+  answered: number;
+  total: number;
+};
 
 export function AppHeader({
   title,
   subtitle,
   badge,
+  nav,
+  progress,
 }: {
   title: string;
   subtitle: string;
   badge?: string;
+  nav?: NavItem[];
+  progress?: ProgressChip | null;
 }) {
   const router = useRouter();
+  const [displayName, setDisplayName] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && data.user?.displayName) {
+          setDisplayName(String(data.user.displayName));
+        }
+      } catch {
+        // ignore — header still works without name
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -39,7 +76,33 @@ export function AppHeader({
             <p className="text-xs text-slate-400">{subtitle}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {nav?.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`text-xs px-3 py-1.5 rounded-lg border transition ${
+                item.active
+                  ? "bg-sky-600 text-white border-sky-600"
+                  : "bg-slate-950 text-slate-400 hover:text-sky-300 border-slate-800"
+              }`}
+            >
+              {item.icon ? <i className={`fa-solid ${item.icon} mr-1.5`} /> : null}
+              {item.label}
+            </Link>
+          ))}
+          {progress && progress.total > 0 ? (
+            <span className="text-xs px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 tabular-nums">
+              <i className="fa-solid fa-chart-line mr-1.5 text-emerald-400" />
+              {progress.answered}/{progress.total}
+            </span>
+          ) : null}
+          {displayName ? (
+            <span className="text-xs px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 max-w-[10rem] truncate">
+              <i className="fa-solid fa-user mr-1.5 text-sky-400" />
+              {displayName}
+            </span>
+          ) : null}
           <Link
             href="/account"
             className="text-xs px-3 py-1.5 rounded-lg bg-slate-950 text-slate-400 hover:text-sky-300 border border-slate-800 transition"

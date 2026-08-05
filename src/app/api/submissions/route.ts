@@ -78,9 +78,14 @@ export async function POST(request: Request) {
         question.type === QuestionType.FREE_TEXT ? textAnswer!.trim() : null,
       selectedChoiceId:
         question.type === QuestionType.MULTIPLE_CHOICE ? selectedChoiceId : null,
-      // Clear any prior AI note when the student revises.
+      // Clear any prior review when the student revises.
       aiFeedback: null,
       aiReviewedAt: null,
+      trainerScore: null,
+      trainerPassed: null,
+      trainerComment: null,
+      feedbackReleased: false,
+      trainerGradedAt: null,
     },
     update: {
       textAnswer:
@@ -89,6 +94,11 @@ export async function POST(request: Request) {
         question.type === QuestionType.MULTIPLE_CHOICE ? selectedChoiceId : null,
       aiFeedback: null,
       aiReviewedAt: null,
+      trainerScore: null,
+      trainerPassed: null,
+      trainerComment: null,
+      feedbackReleased: false,
+      trainerGradedAt: null,
     },
   });
 

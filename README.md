@@ -158,9 +158,11 @@ npm test             # API integration tests (auth, assignment filter, MC submit
 
 - **Multiple choice** is auto-graded from `Choice.isCorrect` when a student saves an answer.
 - Students see Correct / Incorrect on their own MC answers (not the answer key for other choices).
-- Trainers see an **MC scoreboard** on `/trainer` (correct/answered %, completion, free-text count).
+- Trainers can **manually grade free-text** on `/trainer/submissions` (score 0–100, pass/fail, comment) and optionally **release feedback** so the student sees it on the answer page.
+- Trainers see an **MC scoreboard** on `/trainer` (correct/answered %, completion, free-text count). Click a student to open their filtered submissions.
 - Trainers can **Export CSV** or **Export PDF** (browser print) of filtered submissions on `/trainer/submissions`.
 - Trainers can **email a progress digest** for one student (requires SMTP env; see below).
+- Question bank supports **Clone** (duplicates prompt, solution, and choices; no submissions).
 
 ## AI assist (Open WebUI / Ollama)
 

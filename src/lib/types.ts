@@ -20,6 +20,11 @@ export type SubmissionDto = {
   selectedChoiceId: string | null;
   submittedAt: string;
   updatedAt: string;
+  trainerScore?: number | null;
+  trainerPassed?: boolean | null;
+  trainerComment?: string | null;
+  feedbackReleased?: boolean;
+  trainerGradedAt?: string | null;
 };
 
 export type QuestionListItem = {

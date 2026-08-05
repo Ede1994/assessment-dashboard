@@ -49,6 +49,7 @@ export async function GET(_request: Request, { params }: Params) {
     question.type === QuestionType.MULTIPLE_CHOICE && raw?.selectedChoice
       ? Boolean(raw.selectedChoice.isCorrect)
       : null;
+  const released = Boolean(raw?.feedbackReleased);
   const submission = raw
     ? {
         id: raw.id,
@@ -58,6 +59,15 @@ export async function GET(_request: Request, { params }: Params) {
         updatedAt: raw.updatedAt,
         aiFeedback: isTrainer ? raw.aiFeedback : undefined,
         aiReviewedAt: isTrainer ? raw.aiReviewedAt : undefined,
+        ...(isTrainer || released
+          ? {
+              trainerScore: raw.trainerScore,
+              trainerPassed: raw.trainerPassed,
+              trainerComment: raw.trainerComment,
+              feedbackReleased: raw.feedbackReleased,
+              trainerGradedAt: raw.trainerGradedAt,
+            }
+          : {}),
       }
     : null;
 

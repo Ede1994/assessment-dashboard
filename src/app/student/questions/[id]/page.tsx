@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { MathText } from "@/components/MathText";
@@ -11,6 +11,10 @@ import type { ChoiceDto, QuestionListItem, SubmissionDto } from "@/lib/types";
 type QuestionDetail = Omit<QuestionListItem, "answered"> & {
   submission: SubmissionDto | null;
 };
+
+function draftKey(questionId: string) {
+  return `assessment-draft:${questionId}`;
+}
 
 export default function StudentQuestionPage() {
   const params = useParams<{ id: string }>();
@@ -23,21 +27,67 @@ export default function StudentQuestionPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [mcCorrect, setMcCorrect] = useState<boolean | null>(null);
+  const [prevId, setPrevId] = useState<string | null>(null);
+  const [nextId, setNextId] = useState<string | null>(null);
+  const [draftHint, setDraftHint] = useState("");
+  const [progress, setProgress] = useState<{ answered: number; total: number } | null>(
+    null,
+  );
+  const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadedId = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      setLoading(true);
+      setError("");
+      setMessage("");
+      setDraftHint("");
       try {
-        const res = await fetch(`/api/questions/${params.id}`);
-        if (!res.ok) throw new Error("Question not found");
-        const data = await res.json();
+        const [detailRes, listRes] = await Promise.all([
+          fetch(`/api/questions/${params.id}`),
+          fetch("/api/questions"),
+        ]);
+        if (!detailRes.ok) throw new Error("Question not found");
+        const data = await detailRes.json();
         if (cancelled) return;
         setQuestion(data);
-        setTextAnswer(data.submission?.textAnswer ?? "");
         setSelectedChoiceId(data.submission?.selectedChoiceId ?? null);
         setMcCorrect(
           typeof data.mcCorrect === "boolean" ? data.mcCorrect : null,
         );
+
+        const saved = data.submission?.textAnswer ?? "";
+        let initialText = saved;
+        if (data.type === "FREE_TEXT" && !saved) {
+          try {
+            const draft = localStorage.getItem(draftKey(params.id));
+            if (draft) {
+              initialText = draft;
+              setDraftHint("Restored local draft (not submitted yet).");
+            }
+          } catch {
+            // localStorage may be unavailable
+          }
+        }
+        setTextAnswer(initialText);
+        loadedId.current = params.id;
+
+        if (listRes.ok) {
+          const list = await listRes.json();
+          const ids: string[] = (list.questions ?? []).map(
+            (q: QuestionListItem) => q.id,
+          );
+          const idx = ids.indexOf(params.id);
+          setPrevId(idx > 0 ? ids[idx - 1] : null);
+          setNextId(idx >= 0 && idx < ids.length - 1 ? ids[idx + 1] : null);
+          if (list.progress) {
+            setProgress({
+              answered: list.progress.answered,
+              total: list.progress.total,
+            });
+          }
+        }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Error");
       } finally {
@@ -48,6 +98,32 @@ export default function StudentQuestionPage() {
       cancelled = true;
     };
   }, [params.id]);
+
+  useEffect(() => {
+    if (!question || question.type !== "FREE_TEXT") return;
+    if (loadedId.current !== question.id) return;
+    if (question.submission?.textAnswer) return;
+
+    if (draftTimer.current) clearTimeout(draftTimer.current);
+    draftTimer.current = setTimeout(() => {
+      try {
+        const key = draftKey(question.id);
+        if (!textAnswer.trim()) {
+          localStorage.removeItem(key);
+          setDraftHint("");
+          return;
+        }
+        localStorage.setItem(key, textAnswer);
+        setDraftHint("Draft saved locally");
+      } catch {
+        // ignore
+      }
+    }, 500);
+
+    return () => {
+      if (draftTimer.current) clearTimeout(draftTimer.current);
+    };
+  }, [textAnswer, question]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -72,6 +148,12 @@ export default function StudentQuestionPage() {
         setError(data.error ?? "Could not save");
         return;
       }
+      try {
+        localStorage.removeItem(draftKey(question.id));
+      } catch {
+        // ignore
+      }
+      setDraftHint("");
       if (question.type === "MULTIPLE_CHOICE" && data.grading) {
         setMcCorrect(Boolean(data.grading.isCorrect));
         setMessage(
@@ -82,6 +164,30 @@ export default function StudentQuestionPage() {
       } else {
         setMessage("Answer saved.");
       }
+      setQuestion((prev) =>
+        prev
+          ? {
+              ...prev,
+              submission: {
+                ...(prev.submission ?? {
+                  id: data.submission?.id ?? "",
+                  selectedChoiceId: null,
+                  submittedAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                }),
+                textAnswer:
+                  question.type === "FREE_TEXT" ? textAnswer.trim() : null,
+                selectedChoiceId:
+                  question.type === "MULTIPLE_CHOICE" ? selectedChoiceId : null,
+                // Revising clears released trainer feedback.
+                trainerScore: null,
+                trainerPassed: null,
+                trainerComment: null,
+                feedbackReleased: false,
+              },
+            }
+          : prev,
+      );
       router.refresh();
     } catch {
       setError("Network error");
@@ -93,7 +199,12 @@ export default function StudentQuestionPage() {
   if (loading) {
     return (
       <div className="min-h-screen">
-        <AppHeader title="Student Assessment Platform" subtitle="Loading…" badge="Student" />
+        <AppHeader
+          title="Student Assessment Platform"
+          subtitle="Loading…"
+          badge="Student"
+          nav={[{ href: "/student", label: "My tasks", icon: "fa-list-check" }]}
+        />
         <p className="p-8 text-slate-400 text-sm">Loading question…</p>
       </div>
     );
@@ -102,7 +213,12 @@ export default function StudentQuestionPage() {
   if (error && !question) {
     return (
       <div className="min-h-screen">
-        <AppHeader title="Student Assessment Platform" subtitle="Error" badge="Student" />
+        <AppHeader
+          title="Student Assessment Platform"
+          subtitle="Error"
+          badge="Student"
+          nav={[{ href: "/student", label: "My tasks", icon: "fa-list-check" }]}
+        />
         <p className="p-8 text-rose-400 text-sm">{error}</p>
         <Link href="/student" className="px-8 text-sky-400 text-sm">
           Back to questions
@@ -113,6 +229,9 @@ export default function StudentQuestionPage() {
 
   if (!question) return null;
   const colors = categoryColors(question.category.color);
+  const feedback = question.submission?.feedbackReleased
+    ? question.submission
+    : null;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -120,16 +239,50 @@ export default function StudentQuestionPage() {
         title="Student Assessment Platform"
         subtitle={`${question.category.name} • ${question.tags}`}
         badge="Student"
+        nav={[
+          { href: "/student", label: "My tasks", icon: "fa-list-check" },
+        ]}
+        progress={progress}
       />
 
       <main className="max-w-3xl mx-auto px-4 lg:px-8 py-8 flex-1 w-full space-y-6">
-        <Link
-          href="/student"
-          className="text-xs text-slate-400 hover:text-sky-300 transition inline-flex items-center gap-2"
-        >
-          <i className="fa-solid fa-arrow-left" />
-          Back to all questions
-        </Link>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Link
+            href="/student"
+            className="text-xs text-slate-400 hover:text-sky-300 transition inline-flex items-center gap-2"
+          >
+            <i className="fa-solid fa-arrow-left" />
+            Back to all questions
+          </Link>
+          <div className="flex items-center gap-2">
+            {prevId ? (
+              <Link
+                href={`/student/questions/${prevId}`}
+                className="text-xs px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 hover:border-slate-600 transition"
+              >
+                <i className="fa-solid fa-chevron-left mr-1.5" />
+                Previous
+              </Link>
+            ) : (
+              <span className="text-xs px-3 py-1.5 rounded-lg border border-slate-900 text-slate-600">
+                Previous
+              </span>
+            )}
+            {nextId ? (
+              <Link
+                href={`/student/questions/${nextId}`}
+                className="text-xs px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 hover:border-slate-600 transition"
+              >
+                Next
+                <i className="fa-solid fa-chevron-right ml-1.5" />
+              </Link>
+            ) : (
+              <span className="text-xs px-3 py-1.5 rounded-lg border border-slate-900 text-slate-600">
+                Next
+              </span>
+            )}
+          </div>
+        </div>
 
         <article className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5">
           <div className="flex items-center gap-3 flex-wrap">
@@ -174,8 +327,46 @@ export default function StudentQuestionPage() {
             </div>
           ) : null}
 
+          {feedback ? (
+            <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4 space-y-2">
+              <h3 className="text-xs font-bold text-emerald-300">
+                Trainer feedback
+              </h3>
+              <div className="flex flex-wrap gap-2 text-xs">
+                {feedback.trainerPassed != null ? (
+                  <span
+                    className={`px-2.5 py-1 rounded-lg border ${
+                      feedback.trainerPassed
+                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                        : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                    }`}
+                  >
+                    {feedback.trainerPassed ? "Pass" : "Needs work"}
+                  </span>
+                ) : null}
+                {feedback.trainerScore != null ? (
+                  <span className="px-2.5 py-1 rounded-lg border border-slate-700 text-slate-300">
+                    Score: {feedback.trainerScore}/100
+                  </span>
+                ) : null}
+              </div>
+              {feedback.trainerComment ? (
+                <p className="text-sm text-slate-200 whitespace-pre-wrap">
+                  {feedback.trainerComment}
+                </p>
+              ) : (
+                <p className="text-xs text-slate-500">No written comment.</p>
+              )}
+            </div>
+          ) : null}
+
           <form onSubmit={onSubmit} className="space-y-4 border-t border-slate-800 pt-5">
-            <h3 className="text-sm font-semibold text-sky-300">Your answer</h3>
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold text-sky-300">Your answer</h3>
+              {draftHint ? (
+                <span className="text-[11px] text-slate-500">{draftHint}</span>
+              ) : null}
+            </div>
 
             {question.type === "FREE_TEXT" ? (
               <textarea
@@ -216,7 +407,7 @@ export default function StudentQuestionPage() {
               <p className="text-xs text-emerald-400">{message}</p>
             ) : null}
 
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <button
                 type="submit"
                 disabled={saving}
@@ -230,6 +421,15 @@ export default function StudentQuestionPage() {
               >
                 Cancel
               </Link>
+              {nextId && message ? (
+                <Link
+                  href={`/student/questions/${nextId}`}
+                  className="px-4 py-2 rounded-lg bg-slate-950 border border-sky-500/30 text-sky-300 text-sm hover:border-sky-500/60 transition"
+                >
+                  Next question
+                  <i className="fa-solid fa-arrow-right ml-2 text-xs" />
+                </Link>
+              ) : null}
             </div>
           </form>
         </article>

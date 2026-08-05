@@ -20,6 +20,7 @@ type StudentRow = {
 export default function TrainerHomePage() {
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [submissionCount, setSubmissionCount] = useState(0);
+  const [bankTotal, setBankTotal] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -33,6 +34,11 @@ export default function TrainerHomePage() {
         if (cancelled) return;
         setStudents(data.scoreboard ?? data.students ?? []);
         setSubmissionCount((data.submissions ?? []).length);
+        setBankTotal(
+          typeof data.bank?.totalQuestions === "number"
+            ? data.bank.totalQuestions
+            : null,
+        );
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Error");
       } finally {
@@ -68,8 +74,8 @@ export default function TrainerHomePage() {
             Trainer overview
           </h2>
           <p className="text-sm text-slate-400">
-            Multiple-choice answers are graded automatically. Free-text answers can be
-            reviewed with optional AI assist on the submissions page.
+            Multiple-choice answers are graded automatically. Free-text answers
+            can be scored and released to students on the submissions page.
           </p>
         </section>
 
@@ -92,7 +98,7 @@ export default function TrainerHomePage() {
               />
               <StatCard
                 label="Questions in bank"
-                value={String(students[0]?.total ?? "—")}
+                value={bankTotal != null ? String(bankTotal) : "—"}
                 icon="fa-list-check"
               />
             </div>
@@ -103,7 +109,7 @@ export default function TrainerHomePage() {
                   MC scoreboard
                 </h3>
                 <span className="text-[11px] text-slate-500">
-                  Auto-graded from correct choices
+                  Click a row to open that student’s submissions
                 </span>
               </div>
               <div className="overflow-x-auto">
@@ -125,8 +131,15 @@ export default function TrainerHomePage() {
                           {idx + 1}
                         </td>
                         <td className="px-5 py-3">
-                          <p className="text-slate-100 font-medium">{s.displayName}</p>
-                          <p className="text-xs text-slate-500">@{s.username}</p>
+                          <Link
+                            href={`/trainer/submissions?student=${s.id}`}
+                            className="block group"
+                          >
+                            <p className="text-slate-100 font-medium group-hover:text-sky-300 transition">
+                              {s.displayName}
+                            </p>
+                            <p className="text-xs text-slate-500">@{s.username}</p>
+                          </Link>
                         </td>
                         <td className="px-5 py-3 text-right tabular-nums">
                           {s.mcScorePct === null ? (

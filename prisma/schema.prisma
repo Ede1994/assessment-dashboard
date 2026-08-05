@@ -85,6 +85,11 @@ model Submission {
   selectedChoice   Choice?   @relation(fields: [selectedChoiceId], references: [id])
   aiFeedback       String?
   aiReviewedAt     DateTime?
+  trainerScore     Int?
+  trainerPassed    Boolean?
+  trainerComment   String?
+  feedbackReleased Boolean   @default(false)
+  trainerGradedAt  DateTime?
   submittedAt      DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 

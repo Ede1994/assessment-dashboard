@@ -8,7 +8,7 @@ Last updated: 2026-08-05
 
 ## Progress snapshot (2026-08-05)
 
-Solid prototype: auth, question/category CRUD, per-student assignments + presets, MC auto-grade + scoreboard, AI free-text assist, CSV/PDF export, progress email, Docker, CI, ~110 seeded questions. Main gaps now are **media**, **richer student progress**, **trainer grading of free-text**, and **UI QoL** (filters, toasts, navigation, a11y).
+Solid prototype: auth, question/category CRUD, per-student assignments + presets, MC auto-grade + scoreboard, trainer free-text grade + release, AI assist, CSV/PDF export, progress email, student progress/filters/nav QoL, Docker, CI, ~110 seeded questions. Main gaps now are **media**, **assignment due dates / cohorts**, and remaining **UI polish** (toasts, a11y, keyboard).
 
 ---
 
@@ -18,31 +18,19 @@ Solid prototype: auth, question/category CRUD, per-student assignments + presets
 - [ ] Add images and videos to questions and solutions (CT/MRI scans, diagrams, etc.)
 - [ ] Question editor: upload media (image/video) for prompt and/or solution
 - [ ] Question bank import/export (JSON/CSV) for content management without reseed
-- [ ] Student dashboard: progress overview, answered/unanswered breakdown, assignment summary
 - [ ] Assignment due dates + progress tracking (% complete; optional time spent)
-- [ ] Trainer free-text grade: score / pass-fail + short comment on submission
-- [ ] Optional “release feedback” so students see trainer notes (and/or solution) after review
 - [ ] Assignment cohorts: apply the same question set to many students in one action
 - [ ] Copy assignments student A → B (or save/load a named assignment template)
-- [ ] Clone/duplicate question in the bank editor
 - [ ] Optional exam mode: soft-lock MC after first submit (vs practice retries)
 
 ### Student UX / QoL
-- [ ] Filters on `/student`: answered / unanswered / incorrect; sort by category or recent
-- [ ] Next / previous assigned question on the answer page
-- [ ] Local draft autosave for free-text before Submit
-- [ ] Header shows logged-in name + compact progress (including mobile)
-- [ ] “Resume next unanswered” CTA when returning to `/student`
-- [ ] Student nav parity with trainer (clear section links, not only Account / Log out)
-- [ ] Stronger empty states when no assignments / no search matches (with recovery CTAs)
+- [ ] (none currently — progress filters/nav/draft/next-prev shipped 2026-08-05)
 
 ### Trainer UX / QoL
-- [ ] Click scoreboard row → `/trainer/submissions` filtered to that student
 - [ ] Submissions filters: category, type, free-text-only, missing AI review
 - [ ] Compact question-bank table/list view (alongside cards) + bulk actions
 - [ ] Preview-as-student (prompt/choices without solutions)
 - [ ] Unsaved-changes warning on assignments page and question editor
-- [ ] Fix overview “Questions in bank” to use real bank count (not assignment-scoped total)
 - [ ] Confirm modals instead of `window.confirm` (delete user/category/question)
 
 ### UI polish / accessibility
@@ -53,7 +41,7 @@ Solid prototype: auth, question/category CRUD, per-student assignments + presets
 - [ ] Loading skeletons instead of plain “Loading…” text
 
 ### Engineering / polish
-- [ ] Expand automated tests beyond current API smoke tests (assignments, users, categories, rate-limit)
+- [ ] Expand automated tests beyond current API smoke tests (assignments, users, categories, rate-limit, grade, clone)
 - [ ] Persist SQLite volume docs/defaults for Docker (answers survive container recreate)
 - [ ] Optional light theme toggle (currently dark-only)
 
@@ -65,6 +53,14 @@ Solid prototype: auth, question/category CRUD, per-student assignments + presets
 ---
 
 ## Done
+
+### Student progress + trainer grading + QoL (2026-08-05)
+- [x] Student dashboard: progress overview (% / unanswered / MC / free-text), status filters, sort, resume CTA, empty states
+- [x] Next / previous on answer page + local draft autosave for free-text
+- [x] Header: display name + progress chip + student “My tasks” nav
+- [x] Trainer free-text grade (score / pass-fail / comment) + release feedback (`PATCH /api/submissions/[id]/grade`)
+- [x] Clone question (`POST /api/questions/[id]/clone`)
+- [x] Fix overview bank count via `bank.totalQuestions`; scoreboard → `/trainer/submissions?student=`
 
 ### Content import — Medical Imaging Interview Q&A (2026-08-05)
 - [x] Import from https://github.com/amine0110/Medical-Imaging-Interview-Questions-Answers (full answers via pycad.co) → `prisma/interviewQuestionsEn.ts` (36 free-text Qs)

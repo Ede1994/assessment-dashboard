@@ -26,6 +26,7 @@ Last updated: 2026-08-05
 | Self-register | Students only (`/register`) | Trainers provisioned by trainers |
 | Answer types | Mix free-text + multiple choice | User choice |
 | Solutions visibility | Never on student APIs | Trainer-only via `/api/solutions` and trainer pages |
+| Trainer feedback | Released only when `feedbackReleased` | Students see score/pass/comment after trainer opts in |
 | Task scoping | Per-student `QuestionAssignment` | e.g. CT track without MRI tasks |
 | Empty assignments | If a student has **0** assignments → show **full** bank | Avoid locking demos; curated sets use explicit assignments |
 | Question authoring | Trainer in-UI CRUD + seed bootstrap | Day-to-day edits without reseed |
@@ -51,21 +52,24 @@ Last updated: 2026-08-05
 
 ```
 /login
-/student                    → assigned questions only (if any assignments)
-/student/questions/[id]     → answer form; 403 if not assigned
-/trainer                    → overview
-/trainer/questions          → bank + ideal solutions
+/student                    → assigned questions + progress/filters/resume
+/student/questions/[id]     → answer form; next/prev; draft autosave; released feedback
+/trainer                    → overview + MC scoreboard (links to filtered submissions)
+/trainer/questions          → bank + ideal solutions (+ Clone)
 /trainer/categories         → create / rename / delete empty categories
 /trainer/assignments        → pick questions per student (+ named presets)
-/trainer/submissions        → student answer vs ideal solution (+ CSV export)
+/trainer/submissions        → student vs ideal + free-text grade/release (+ CSV/PDF)
 /trainer/users              → create / delete / reset password
 
-API: /api/auth/*, /api/questions, /api/submissions, /api/solutions (trainer), /api/assignments (trainer), /api/categories, /api/users
+API: /api/auth/*, /api/questions, /api/questions/[id]/clone, /api/submissions,
+     /api/submissions/[id]/grade, /api/submissions/[id]/ai-review,
+     /api/solutions, /api/assignments, /api/categories, /api/users
 ```
 
 - Prisma client generated to `src/generated/prisma` (gitignored); `postinstall` / `prisma generate`.
 - Prisma 7 needs `@prisma/adapter-better-sqlite3` + path helper in `src/lib/prisma.ts`.
 - Seed: `prisma/seed.ts` + `prisma/tutorQuestionsEn.ts`; run `npm run db:seed` or `db:reset`.
+- Submission trainer fields: `trainerScore`, `trainerPassed`, `trainerComment`, `feedbackReleased`, `trainerGradedAt`. Student revise clears them (same as AI feedback).
 
 ---
 
@@ -88,10 +92,18 @@ MRI-heavy filter used for `student2` seed and CT-track preset (regex-ish on titl
 - Autoreview may block destructive DB resets (`rm` db / force seed); request approval when needed.
 - Font Awesome: CSS from `@fortawesome/fontawesome-free`; webfonts copied to `public/webfonts` by `scripts/copy-webfonts.mjs`. KaTeX via `MathText` client component.
 - Progress email needs `SMTP_HOST` + `SMTP_FROM` (optional user/pass/port).
+- `/trainer/submissions` uses `useSearchParams` — keep Suspense wrapper around the content component.
 
 ---
 
 ## Session log
+
+### 2026-08-05 — Student progress QoL + trainer free-text grading
+- User asked to read repo and implement next features (from TODO).
+- Student: progress overview, status filters/sort, resume CTA, empty states, next/prev, free-text localStorage draft, header name + progress + nav.
+- Trainer: free-text grade + release (`PATCH /api/submissions/[id]/grade`), clone question, bank count fix, scoreboard → `?student=`.
+- Schema: Submission trainer fields; student revise clears grade like AI feedback.
+- Build verified; docs TODO/MEMORY/README updated.
 
 ### 2026-08-05 — Expand TODO with QoL / feature ideas
 - Reviewed progress: auth, CRUD, assignments/presets, MC grade, AI assist, export/email, CI/Docker, ~110 questions.

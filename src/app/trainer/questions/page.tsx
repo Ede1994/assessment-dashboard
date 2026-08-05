@@ -30,6 +30,7 @@ export default function TrainerQuestionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [cloningId, setCloningId] = useState<string | null>(null);
 
   async function load() {
     const res = await fetch("/api/solutions");
@@ -74,6 +75,21 @@ export default function TrainerQuestionsPage() {
       setError(e instanceof Error ? e.message : "Delete failed");
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  async function cloneQuestion(id: string) {
+    setCloningId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/questions/${id}/clone`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Clone failed");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Clone failed");
+    } finally {
+      setCloningId(null);
     }
   }
 
@@ -183,6 +199,14 @@ export default function TrainerQuestionsPage() {
                       >
                         Edit
                       </Link>
+                      <button
+                        type="button"
+                        disabled={cloningId === q.id}
+                        onClick={() => cloneQuestion(q.id)}
+                        className="text-xs px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 hover:border-sky-500/40 disabled:opacity-50"
+                      >
+                        {cloningId === q.id ? "…" : "Clone"}
+                      </button>
                       <button
                         type="button"
                         disabled={deletingId === q.id}

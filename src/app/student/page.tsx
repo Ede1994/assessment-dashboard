@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { MathText } from "@/components/MathText";
 import { categoryColors } from "@/lib/colors";
 import type { CategoryDto, ProgressDto, QuestionListItem } from "@/lib/types";
+
+type StatusFilter = "all" | "unanswered" | "answered" | "incorrect";
+type SortMode = "default" | "category" | "recent";
 
 export default function StudentDashboardPage() {
   const [categories, setCategories] = useState<CategoryDto[]>([]);
@@ -13,6 +16,8 @@ export default function StudentDashboardPage() {
   const [progress, setProgress] = useState<ProgressDto>({ answered: 0, total: 0 });
   const [assignmentMode, setAssignmentMode] = useState(false);
   const [tab, setTab] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [sortMode, setSortMode] = useState<SortMode>("default");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -40,11 +45,31 @@ export default function StudentDashboardPage() {
     };
   }, []);
 
+  const unansweredCount = useMemo(
+    () => questions.filter((q) => !q.answered).length,
+    [questions],
+  );
+  const incorrectCount = useMemo(
+    () => questions.filter((q) => q.mcCorrect === false).length,
+    [questions],
+  );
+  const nextUnanswered = useMemo(
+    () => questions.find((q) => !q.answered) ?? null,
+    [questions],
+  );
+  const pctComplete =
+    progress.total > 0
+      ? Math.round((progress.answered / progress.total) * 100)
+      : 0;
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return questions.filter((item) => {
+    let list = questions.filter((item) => {
       const tabOk = tab === "all" || item.category.slug === tab;
       if (!tabOk) return false;
+      if (statusFilter === "unanswered" && item.answered) return false;
+      if (statusFilter === "answered" && !item.answered) return false;
+      if (statusFilter === "incorrect" && item.mcCorrect !== false) return false;
       if (!q) return true;
       return (
         item.title.toLowerCase().includes(q) ||
@@ -53,7 +78,38 @@ export default function StudentDashboardPage() {
         item.category.name.toLowerCase().includes(q)
       );
     });
-  }, [questions, tab, search]);
+
+    if (sortMode === "category") {
+      list = [...list].sort((a, b) => {
+        const c = a.category.name.localeCompare(b.category.name);
+        if (c !== 0) return c;
+        return a.sortOrder - b.sortOrder;
+      });
+    } else if (sortMode === "recent") {
+      list = [...list].sort((a, b) => {
+        const at = a.submission?.updatedAt
+          ? new Date(a.submission.updatedAt).getTime()
+          : 0;
+        const bt = b.submission?.updatedAt
+          ? new Date(b.submission.updatedAt).getTime()
+          : 0;
+        if (bt !== at) return bt - at;
+        return a.sortOrder - b.sortOrder;
+      });
+    }
+
+    return list;
+  }, [questions, tab, search, statusFilter, sortMode]);
+
+  const hasActiveFilters =
+    tab !== "all" || statusFilter !== "all" || search.trim() !== "";
+
+  function clearFilters() {
+    setTab("all");
+    setStatusFilter("all");
+    setSearch("");
+    setSortMode("default");
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -61,9 +117,95 @@ export default function StudentDashboardPage() {
         title="Student Assessment Platform"
         subtitle="Answer programming, medical imaging, and deep learning tasks"
         badge="Student"
+        nav={[
+          {
+            href: "/student",
+            label: "My tasks",
+            icon: "fa-list-check",
+            active: true,
+          },
+        ]}
+        progress={
+          progress.total > 0
+            ? { answered: progress.answered, total: progress.total }
+            : null
+        }
       />
 
       <main className="max-w-7xl mx-auto px-4 lg:px-8 py-8 flex-1 w-full space-y-8">
+        <section className="bg-gradient-to-r from-slate-900 via-slate-900 to-sky-950/40 p-6 rounded-2xl border border-sky-500/20 shadow-xl relative overflow-hidden">
+          <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="flex flex-wrap items-start justify-between gap-4 relative">
+            <div className="max-w-2xl">
+              <h2 className="text-base font-bold text-sky-300 flex items-center gap-2 mb-2">
+                <i className="fa-solid fa-clipboard-list" />
+                Your progress
+              </h2>
+              <p className="text-sm text-slate-400">
+                Work through free-text and multiple-choice tasks. Solutions stay
+                hidden until your trainer releases feedback.
+              </p>
+              {assignmentMode ? (
+                <p className="text-xs text-emerald-400 mt-3">
+                  <i className="fa-solid fa-filter mr-1.5" />
+                  Showing only tasks assigned to you ({progress.total} tasks).
+                </p>
+              ) : (
+                <p className="text-xs text-amber-400/90 mt-3">
+                  No curated assignment yet — showing the full question bank.
+                </p>
+              )}
+            </div>
+            {nextUnanswered ? (
+              <Link
+                href={`/student/questions/${nextUnanswered.id}`}
+                className="relative text-sm px-4 py-2.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white transition whitespace-nowrap"
+              >
+                <i className="fa-solid fa-play mr-2 text-xs" />
+                Resume next unanswered
+              </Link>
+            ) : progress.total > 0 && !loading ? (
+              <span className="relative text-sm px-4 py-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <i className="fa-solid fa-circle-check mr-2" />
+                All tasks answered
+              </span>
+            ) : null}
+          </div>
+
+          {!loading && progress.total > 0 ? (
+            <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3 relative">
+              <ProgressStat
+                label="Complete"
+                value={`${pctComplete}%`}
+                detail={`${progress.answered}/${progress.total}`}
+              />
+              <ProgressStat
+                label="Unanswered"
+                value={String(unansweredCount)}
+                detail="still open"
+              />
+              <ProgressStat
+                label="MC score"
+                value={
+                  progress.mcAnswered
+                    ? `${progress.mcScorePct ?? 0}%`
+                    : "—"
+                }
+                detail={
+                  progress.mcAnswered
+                    ? `${progress.mcCorrect ?? 0}/${progress.mcAnswered} correct`
+                    : "no MC yet"
+                }
+              />
+              <ProgressStat
+                label="Free text"
+                value={String(progress.freeTextAnswered ?? 0)}
+                detail="submitted"
+              />
+            </div>
+          ) : null}
+        </section>
+
         <div className="flex flex-wrap items-center justify-between border-b border-slate-800 pb-4 gap-4">
           <div className="flex flex-wrap gap-2">
             <TabButton
@@ -83,62 +225,67 @@ export default function StudentDashboardPage() {
               />
             ))}
           </div>
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <div className="relative flex-1 sm:w-64">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-56">
               <i className="fa-solid fa-search absolute left-3 top-2.5 text-slate-500 text-sm" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search (e.g. OOM, resampling, HU)…"
+                placeholder="Search (e.g. OOM, resampling)…"
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-sky-500 transition"
               />
             </div>
-            <div className="hidden sm:flex items-center gap-3 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 text-xs whitespace-nowrap">
-              <span className="text-slate-400">Answered:</span>
-              <span className="font-bold text-emerald-400">{progress.answered}</span>
-              <span className="text-slate-600">/</span>
-              <span className="font-bold text-slate-300">{progress.total}</span>
-              {progress.mcAnswered ? (
-                <>
-                  <span className="text-slate-700">|</span>
-                  <span className="text-slate-400">MC:</span>
-                  <span className="font-bold text-sky-300">
-                    {progress.mcCorrect ?? 0}/{progress.mcAnswered}
-                    {progress.mcScorePct != null ? ` (${progress.mcScorePct}%)` : ""}
-                  </span>
-                </>
-              ) : null}
-            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+              className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-sky-500"
+              aria-label="Filter by status"
+            >
+              <option value="all">All status</option>
+              <option value="unanswered">Unanswered ({unansweredCount})</option>
+              <option value="answered">Answered ({progress.answered})</option>
+              <option value="incorrect">Incorrect MC ({incorrectCount})</option>
+            </select>
+            <select
+              value={sortMode}
+              onChange={(e) => setSortMode(e.target.value as SortMode)}
+              className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-sky-500"
+              aria-label="Sort questions"
+            >
+              <option value="default">Sort: default</option>
+              <option value="category">Sort: category</option>
+              <option value="recent">Sort: recently answered</option>
+            </select>
           </div>
         </div>
-
-        <section className="bg-gradient-to-r from-slate-900 via-slate-900 to-sky-950/40 p-6 rounded-2xl border border-sky-500/20 shadow-xl relative overflow-hidden">
-          <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
-          <h2 className="text-base font-bold text-sky-300 flex items-center gap-2 mb-2">
-            <i className="fa-solid fa-clipboard-list" />
-            Assessment overview
-          </h2>
-          <p className="text-sm text-slate-400 max-w-3xl">
-            Work through free-text and multiple-choice tasks covering PyTorch, Python,
-            medical data processing, CT/MRI, DICOM, governance, and deep learning
-            architectures. Solutions stay hidden until your trainer reviews submissions.
-          </p>
-          {assignmentMode ? (
-            <p className="text-xs text-emerald-400 mt-3">
-              <i className="fa-solid fa-filter mr-1.5" />
-              Showing only tasks assigned to you by your trainer ({progress.total} tasks).
-            </p>
-          ) : (
-            <p className="text-xs text-amber-400/90 mt-3">
-              No curated assignment yet — showing the full question bank.
-            </p>
-          )}
-        </section>
 
         {loading ? (
           <p className="text-sm text-slate-400">Loading questions…</p>
         ) : error ? (
           <p className="text-sm text-rose-400">{error}</p>
+        ) : questions.length === 0 ? (
+          <EmptyState
+            icon="fa-inbox"
+            title="No tasks assigned yet"
+            body="Your trainer has not assigned any questions. Check back later, or ask them to open Assign tasks."
+          />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon="fa-filter-circle-xmark"
+            title="No questions match your filters"
+            body="Try clearing the search or status filter to see your assigned tasks again."
+            action={
+              hasActiveFilters ? (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="text-sm px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white transition"
+                >
+                  Clear filters
+                </button>
+              ) : null
+            }
+          />
         ) : (
           <section className="grid grid-cols-1 gap-6">
             {filtered.map((q) => {
@@ -213,12 +360,50 @@ export default function StudentDashboardPage() {
                 </article>
               );
             })}
-            {filtered.length === 0 ? (
-              <p className="text-sm text-slate-500">No questions match your filters.</p>
-            ) : null}
           </section>
         )}
       </main>
+    </div>
+  );
+}
+
+function ProgressStat({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="bg-slate-950/70 border border-slate-800 rounded-xl px-3 py-2.5">
+      <p className="text-[11px] text-slate-500 uppercase tracking-wide">{label}</p>
+      <p className="text-lg font-bold text-slate-100 tabular-nums">{value}</p>
+      <p className="text-[11px] text-slate-500">{detail}</p>
+    </div>
+  );
+}
+
+function EmptyState({
+  icon,
+  title,
+  body,
+  action,
+}: {
+  icon: string;
+  title: string;
+  body: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-10 text-center space-y-3">
+      <div className="inline-flex p-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-400">
+        <i className={`fa-solid ${icon} text-xl`} />
+      </div>
+      <h3 className="text-base font-semibold text-slate-200">{title}</h3>
+      <p className="text-sm text-slate-500 max-w-md mx-auto">{body}</p>
+      {action ? <div className="pt-2">{action}</div> : null}
     </div>
   );
 }
