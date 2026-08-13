@@ -125,7 +125,7 @@ Trainers manage the bank in the UI (no seed edit required for day-to-day changes
 - **New:** `/trainer/questions/new`
 - **Edit:** `/trainer/questions/[id]/edit` (or Edit on each card)
 - **Delete / Clone / Preview:** on each card or in compact list view
-- **Import / Export:** JSON bank dump via Export JSON / Import JSON on `/trainer/questions` (categories matched by slug)
+- **Import / Export:** JSON bank dump via Export JSON / Import JSON on `/trainer/questions` (categories matched by slug), plus **Export CSV** for a spreadsheet-friendly dump
 - **Media:** upload image/video in the editor (stored under `/public/uploads`, inserted as `![alt](/uploads/…)` markdown; videos render with controls)
 
 Each question stores prompt, optional code snippet, type (free text / MC + choices), and trainer-only ideal answer / explanation / code solution.
@@ -134,7 +134,19 @@ Seed data still bootstraps categories and the initial bank via `npm run db:seed`
 
 ## Assignments
 
-Trainers open **Assign tasks** (`/trainer/assignments`), pick a student, then select individual questions, whole categories (+/−), or named presets (**CT-track**, **MRI-track**, **PyTorch-only**). Optional **due date**, **exam mode** (soft-locks MC after first submit), **copy from another student**, and **cohort** multi-select apply the same set to several students at once. Saving replaces each target student’s assignment set. Students with no assignments temporarily see the full bank; due dates appear on the student dashboard with overdue highlighting.
+Trainers open **Assign tasks** (`/trainer/assignments`), pick a student, then select individual questions, whole categories (+/−), built-in presets (**CT-track**, **MRI-track**, **PyTorch-only**), or **saved named templates**. Save the current selection as a reusable template (overwrite if the name already exists). Optional **due date**, **exam mode** (soft-locks MC after first submit), **copy from another student**, and **cohort** multi-select apply the same set to several students at once. Saving replaces each target student’s assignment set. Students with no assignments temporarily see the full bank; due dates appear on the student dashboard with overdue highlighting.
+
+## Keyboard shortcuts
+
+On the student task list, trainer question bank, and assign-tasks list:
+
+| Key | Action |
+|-----|--------|
+| `/` | Focus search |
+| `j` / `↓` | Highlight next item |
+| `k` / `↑` | Highlight previous item |
+| Enter | Open (student), preview (bank), or toggle (assignments) |
+| Esc | Close dialogs or blur search |
 
 ## Categories
 
@@ -163,6 +175,7 @@ npm test             # API integration tests (auth, assignment filter, MC submit
 - Trainers can **manually grade free-text** on `/trainer/submissions` (score 0–100, pass/fail, comment) and optionally **release feedback** so the student sees it on the answer page.
 - Trainers see an **MC scoreboard** on `/trainer` (correct/answered %, completion, free-text count). Click a student to open their filtered submissions.
 - Trainers can **Export CSV** or **Export PDF** (browser print) of filtered submissions on `/trainer/submissions`.
+- Question bank **Export CSV** is available next to Export JSON on `/trainer/questions`.
 - Trainers can **email a progress digest** for one student (requires SMTP env; see below).
 - Question bank supports **Clone** (duplicates prompt, solution, and choices; no submissions).
 

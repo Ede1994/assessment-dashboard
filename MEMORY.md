@@ -2,7 +2,7 @@
 
 Shared memory for agents across chats/sessions. Write like a human notebook: durable facts, decisions, pitfalls, and “where things live.” Newest entries at the top of **Session log**.
 
-Last updated: 2026-08-05
+Last updated: 2026-08-13
 
 ---
 
@@ -57,13 +57,13 @@ Last updated: 2026-08-05
 /trainer                    → overview + MC scoreboard (links to filtered submissions)
 /trainer/questions          → bank cards/list, clone, preview, import/export, media
 /trainer/categories         → create / rename / delete empty categories
-/trainer/assignments        → pick questions (+ due, exam mode, cohort, copy-from)
+/trainer/assignments        → pick questions (+ due, exam mode, cohort, copy-from, named templates)
 /trainer/submissions        → student vs ideal + free-text grade/release (+ CSV/PDF)
 /trainer/users              → create / delete / reset password
 
-API: /api/auth/*, /api/questions, /api/questions/[id]/clone, /api/submissions,
-     /api/submissions/[id]/grade, /api/submissions/[id]/ai-review,
-     /api/solutions, /api/assignments, /api/categories, /api/users
+API: /api/auth/*, /api/questions, /api/questions/[id]/clone, /api/questions/export|import|bulk-delete,
+     /api/submissions, /api/submissions/[id]/grade, /api/submissions/[id]/ai-review,
+     /api/solutions, /api/assignments, /api/assignment-templates, /api/categories, /api/users
 ```
 
 - Prisma client generated to `src/generated/prisma` (gitignored); `postinstall` / `prisma generate`.
@@ -71,6 +71,7 @@ API: /api/auth/*, /api/questions, /api/questions/[id]/clone, /api/submissions,
 - Seed: `prisma/seed.ts` + `prisma/tutorQuestionsEn.ts`; run `npm run db:seed` or `db:reset`.
 - Submission trainer fields: `trainerScore`, `trainerPassed`, `trainerComment`, `feedbackReleased`, `trainerGradedAt`. Student revise clears them (same as AI feedback).
 - Assignment `dueAt` + `examMode` (per-student set). Cohort save via `studentIds[]` on PUT `/api/assignments`.
+- Named assignment templates: `AssignmentTemplate` + join rows; trainer CRUD at `/api/assignment-templates`. Built-in CT/MRI/PyTorch presets stay in `src/lib/assignmentPresets.ts`.
 - Trainer uploads land in `public/uploads` (gitignored except `.gitkeep`).
 
 ---
@@ -100,6 +101,13 @@ MRI-heavy filter used for `student2` seed and CT-track preset (regex-ish on titl
 ---
 
 ## Session log
+
+### 2026-08-13 — Named templates, bank CSV, keyboard/a11y
+- User asked to read the repo and implement the next features.
+- Named assignment templates persist custom question sets (`AssignmentTemplate`); UI on `/trainer/assignments` next to built-in presets (save / apply / overwrite / delete).
+- Question bank Export CSV (`GET /api/questions/export?format=csv`).
+- Keyboard: `/` search, `j`/`k` list nav, Enter activate; focus traps on dialogs; reduced-motion; sticky filters; denser mobile cards; progress chip always in the header title.
+- Tests cover template CRUD + CSV export. After pull: `npx prisma db push` (additive; no reseed required unless you want demo data reset).
 
 ### 2026-08-05 — Media upload, bank import/export, exam mode, list/preview
 - User asked to add the next features.

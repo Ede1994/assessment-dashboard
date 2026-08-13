@@ -2,21 +2,19 @@
 
 Living checklist for agents. Mark items `[x]` when done, add new open work under **Open**, and move finished work to **Done** with a short note.
 
-Last updated: 2026-08-05
+Last updated: 2026-08-13
 
 ---
 
-## Progress snapshot (2026-08-05)
+## Progress snapshot (2026-08-13)
 
-Solid prototype: auth, CRUD, assignments (due/cohort/exam), media uploads, bank import/export + list/preview, MC + free-text grading, AI assist, student QoL, Docker volume mounts, CI, ~110 questions. Main gaps now are **named assignment templates**, deeper **a11y/keyboard**, and **content tagging cleanup**.
+Solid prototype: auth, CRUD, assignments (due/cohort/exam/**named templates**), media uploads, bank import/export (JSON + CSV) + list/preview, MC + free-text grading, AI assist, student QoL, keyboard list nav, Docker volume mounts, CI, ~110 questions. Main remaining gaps are **time-spent tracking**, **content tagging cleanup**, and a **light theme**.
 
 ---
 
 ## Open
 
 ### Product / features
-- [ ] Named assignment templates (persist presets beyond CT/MRI/PyTorch built-ins)
-- [ ] CSV export variant of question bank (JSON import/export already shipped)
 - [ ] Optional time-spent tracking on assignments
 
 ### Student UX / QoL
@@ -26,12 +24,10 @@ Solid prototype: auth, CRUD, assignments (due/cohort/exam), media uploads, bank 
 - [ ] (bank list/bulk/preview/import-export shipped)
 
 ### UI polish / accessibility
-- [ ] Keyboard QoL: `/` focus search, `j`/`k` list navigation (Esc already on confirm dialogs)
-- [ ] Basic a11y pass: focus traps, reduced-motion
-- [ ] Mobile polish: sticky filters, denser cards, always-visible progress chip
+- [ ] (keyboard `/` `j`/`k`, focus traps, reduced-motion, sticky filters shipped)
 
 ### Engineering / polish
-- [ ] Expand automated tests beyond current API smoke tests (assignments, users, categories, rate-limit, grade, clone, media, import)
+- [ ] Expand automated tests beyond current API smoke tests (users, categories, rate-limit, grade, clone, media, import)
 - [ ] Optional light theme toggle (currently dark-only)
 
 ### Content
@@ -42,6 +38,14 @@ Solid prototype: auth, CRUD, assignments (due/cohort/exam), media uploads, bank 
 ---
 
 ## Done
+
+### Named templates + bank CSV + keyboard/a11y (2026-08-13)
+- [x] Named assignment templates (`AssignmentTemplate` + `/api/assignment-templates`); save/apply/overwrite/delete on Assign tasks
+- [x] Question bank CSV export (`GET /api/questions/export?format=csv`)
+- [x] Keyboard QoL: `/` focus search, `j`/`k` list navigation, Enter activate
+- [x] Focus traps on confirm/preview dialogs; `prefers-reduced-motion`
+- [x] Mobile: sticky filters, denser cards, progress chip in header title
+- [x] API tests for template CRUD + CSV export
 
 ### Media, bank import/export, exam mode, bank list (2026-08-05)
 - [x] Media upload API (`/api/media`) + editor insert; MathText renders images/videos

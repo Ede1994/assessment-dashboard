@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef } from "react";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 type ConfirmDialogProps = {
   open: boolean;
@@ -27,10 +28,12 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const titleId = useId();
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(open, dialogRef, cancelRef);
 
   useEffect(() => {
     if (!open) return;
-    cancelRef.current?.focus();
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onCancel();
     }
@@ -49,6 +52,7 @@ export function ConfirmDialog({
       }}
     >
       <div
+        ref={dialogRef}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby={titleId}

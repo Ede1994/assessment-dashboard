@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { LoadingSkeleton } from "@/components/LoadingSkeleton";
 import { MathText } from "@/components/MathText";
+import { listItemClass, useListKeyboard } from "@/hooks/useListKeyboard";
 import { categoryColors } from "@/lib/colors";
 import type { CategoryDto, ProgressDto, QuestionListItem } from "@/lib/types";
 
@@ -12,6 +14,8 @@ type StatusFilter = "all" | "unanswered" | "answered" | "incorrect";
 type SortMode = "default" | "category" | "recent";
 
 export default function StudentDashboardPage() {
+  const router = useRouter();
+  const searchRef = useRef<HTMLInputElement>(null);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [questions, setQuestions] = useState<QuestionListItem[]>([]);
   const [progress, setProgress] = useState<ProgressDto>({ answered: 0, total: 0 });
@@ -112,6 +116,15 @@ export default function StudentDashboardPage() {
 
   const hasActiveFilters =
     tab !== "all" || statusFilter !== "all" || search.trim() !== "";
+
+  const activeIndex = useListKeyboard({
+    itemCount: filtered.length,
+    searchRef,
+    onActivate: (index) => {
+      const item = filtered[index];
+      if (item) router.push(`/student/questions/${item.id}`);
+    },
+  });
 
   function clearFilters() {
     setTab("all");
@@ -229,7 +242,7 @@ export default function StudentDashboardPage() {
           ) : null}
         </section>
 
-        <div className="flex flex-wrap items-center justify-between border-b border-slate-800 pb-4 gap-4">
+        <div className="sticky top-[4.75rem] z-30 -mx-4 px-4 py-3 bg-slate-950/90 backdrop-blur border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap gap-2">
             <TabButton
               active={tab === "all"}
@@ -252,12 +265,17 @@ export default function StudentDashboardPage() {
             <div className="relative flex-1 sm:w-56">
               <i className="fa-solid fa-search absolute left-3 top-2.5 text-slate-500 text-sm" />
               <input
+                ref={searchRef}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search (e.g. OOM, resampling)…"
+                aria-label="Search questions"
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-sky-500 transition"
               />
             </div>
+            <span className="hidden lg:inline text-[10px] text-slate-600 whitespace-nowrap">
+              / search · j/k · Enter
+            </span>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
@@ -310,13 +328,17 @@ export default function StudentDashboardPage() {
             }
           />
         ) : (
-          <section className="grid grid-cols-1 gap-6">
-            {filtered.map((q) => {
+          <section className="grid grid-cols-1 gap-4 sm:gap-6">
+            {filtered.map((q, index) => {
               const colors = categoryColors(q.category.color);
               return (
                 <article
                   key={q.id}
-                  className="bg-slate-900 border border-slate-800 rounded-2xl p-6 hover:border-slate-700 transition space-y-4"
+                  data-list-index={index}
+                  className={listItemClass(
+                    activeIndex === index,
+                    "bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 hover:border-slate-700 transition space-y-3 sm:space-y-4",
+                  )}
                 >
                   <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div className="flex items-center gap-3 flex-wrap">

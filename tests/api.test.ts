@@ -190,4 +190,87 @@ describe("API integration", () => {
     });
     assert.equal(anonRes.status, 401);
   });
+
+  test("assignment templates: trainer CRUD; student and anonymous are unauthorized", async () => {
+    const student = await login("student", "student");
+    const studentGet = await apiFetch(student.jar, "/api/assignment-templates");
+    assert.equal(studentGet.status, 401);
+
+    const anonPost = await apiFetch(createCookieJar(), "/api/assignment-templates", {
+      method: "POST",
+      body: JSON.stringify({ name: "Nope", questionIds: [] }),
+    });
+    assert.equal(anonPost.status, 401);
+
+    const trainer = await login("trainer", "NRAD2026");
+    const bankRes = await apiFetch(trainer.jar, "/api/assignments");
+    assert.equal(bankRes.status, 200);
+    const bank = (await bankRes.json()) as {
+      questions: Array<{ id: string }>;
+    };
+    const ids = bank.questions.slice(0, 3).map((q) => q.id);
+    assert.ok(ids.length >= 1);
+
+    const createdRes = await apiFetch(trainer.jar, "/api/assignment-templates", {
+      method: "POST",
+      body: JSON.stringify({ name: "API test template", questionIds: ids }),
+    });
+    assert.equal(createdRes.status, 201);
+    const created = (await createdRes.json()) as {
+      template: { id: string; name: string; questionCount: number };
+    };
+    assert.equal(created.template.name, "API test template");
+    assert.equal(created.template.questionCount, ids.length);
+
+    const clash = await apiFetch(trainer.jar, "/api/assignment-templates", {
+      method: "POST",
+      body: JSON.stringify({ name: "API test template", questionIds: ids }),
+    });
+    assert.equal(clash.status, 409);
+
+    const listRes = await apiFetch(trainer.jar, "/api/assignment-templates");
+    assert.equal(listRes.status, 200);
+    const list = (await listRes.json()) as {
+      templates: Array<{ id: string; name: string }>;
+    };
+    assert.ok(list.templates.some((t) => t.id === created.template.id));
+
+    const updatedRes = await apiFetch(
+      trainer.jar,
+      `/api/assignment-templates/${created.template.id}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ questionIds: ids.slice(0, 1) }),
+      },
+    );
+    assert.equal(updatedRes.status, 200);
+    const updated = (await updatedRes.json()) as {
+      template: { questionCount: number };
+    };
+    assert.equal(updated.template.questionCount, 1);
+
+    const delRes = await apiFetch(
+      trainer.jar,
+      `/api/assignment-templates/${created.template.id}`,
+      { method: "DELETE" },
+    );
+    assert.equal(delRes.status, 200);
+  });
+
+  test("question bank CSV export: trainer download; anonymous 401", async () => {
+    const anon = await apiFetch(
+      createCookieJar(),
+      "/api/questions/export?format=csv",
+    );
+    assert.equal(anon.status, 401);
+
+    const trainer = await login("trainer", "NRAD2026");
+    const res = await apiFetch(trainer.jar, "/api/questions/export?format=csv");
+    assert.equal(res.status, 200);
+    const ctype = res.headers.get("content-type") ?? "";
+    assert.match(ctype, /text\/csv/i);
+    const text = await res.text();
+    assert.match(text, /categorySlug/);
+    assert.ok(text.split("\n").length > 2);
+  });
 });

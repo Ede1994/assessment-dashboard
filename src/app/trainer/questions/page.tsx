@@ -8,6 +8,8 @@ import { LoadingSkeleton } from "@/components/LoadingSkeleton";
 import { MathText } from "@/components/MathText";
 import { TrainerNav } from "@/components/TrainerNav";
 import { useToast } from "@/components/Toast";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
+import { listItemClass, useListKeyboard } from "@/hooks/useListKeyboard";
 import { categoryColors } from "@/lib/colors";
 import type { CategoryDto, ChoiceDto, SolutionDto } from "@/lib/types";
 
@@ -27,10 +29,10 @@ type TrainerQuestion = {
 
 type ViewMode = "cards" | "list";
 
-function todayFilename() {
+function todayFilename(ext: "json" | "csv" = "json") {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `question-bank-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.json`;
+  return `question-bank-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.${ext}`;
 }
 
 function QuestionPreviewModal({
@@ -42,6 +44,10 @@ function QuestionPreviewModal({
 }) {
   const titleId = useId();
   const colors = categoryColors(question.category.color);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useFocusTrap(true, dialogRef, closeRef);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -60,6 +66,7 @@ function QuestionPreviewModal({
       }}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -87,6 +94,7 @@ function QuestionPreviewModal({
             </h2>
           </div>
           <button
+            ref={closeRef}
             type="button"
             onClick={onClose}
             className="text-slate-400 hover:text-slate-200 p-1"
@@ -136,6 +144,7 @@ function QuestionPreviewModal({
 export default function TrainerQuestionsPage() {
   const { toast } = useToast();
   const importInputRef = useRef<HTMLInputElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [questions, setQuestions] = useState<TrainerQuestion[]>([]);
   const [tab, setTab] = useState("all");
@@ -249,11 +258,15 @@ export default function TrainerQuestionsPage() {
     }
   }
 
-  async function exportBank() {
+  async function exportBank(format: "json" | "csv" = "json") {
     setExporting(true);
     setError("");
     try {
-      const res = await fetch("/api/questions/export");
+      const res = await fetch(
+        format === "csv"
+          ? "/api/questions/export?format=csv"
+          : "/api/questions/export",
+      );
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error ?? "Export failed");
@@ -262,10 +275,13 @@ export default function TrainerQuestionsPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = todayFilename();
+      a.download = todayFilename(format);
       a.click();
       URL.revokeObjectURL(url);
-      toast("Question bank exported.", "success");
+      toast(
+        format === "csv" ? "Question bank CSV exported." : "Question bank exported.",
+        "success",
+      );
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Export failed";
       setError(msg);
@@ -347,6 +363,16 @@ export default function TrainerQuestionsPage() {
   const allFilteredSelected =
     filtered.length > 0 && filtered.every((q) => selected.has(q.id));
 
+  const activeIndex = useListKeyboard({
+    itemCount: filtered.length,
+    searchRef,
+    enabled: !preview && !pendingDelete && !pendingBulkDelete,
+    onActivate: (index) => {
+      const item = filtered[index];
+      if (item) setPreview(item);
+    },
+  });
+
   const actionBtn =
     "text-xs px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 hover:border-sky-500/40 disabled:opacity-50";
 
@@ -383,12 +409,16 @@ export default function TrainerQuestionsPage() {
     );
   }
 
-  function renderCard(q: TrainerQuestion) {
+  function renderCard(q: TrainerQuestion, index: number) {
     const colors = categoryColors(q.category.color);
     return (
       <article
         key={q.id}
-        className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4"
+        data-list-index={index}
+        className={listItemClass(
+          activeIndex === index,
+          "bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 space-y-3 sm:space-y-4",
+        )}
       >
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3 flex-wrap">
@@ -516,12 +546,16 @@ export default function TrainerQuestionsPage() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((q) => {
+            {filtered.map((q, index) => {
               const colors = categoryColors(q.category.color);
               return (
                 <tr
                   key={q.id}
-                  className="border-b border-slate-800/80 hover:bg-slate-800/30"
+                  data-list-index={index}
+                  className={listItemClass(
+                    activeIndex === index,
+                    "border-b border-slate-800/80 hover:bg-slate-800/30",
+                  )}
                 >
                   <td className="p-3">
                     <input
@@ -567,7 +601,7 @@ export default function TrainerQuestionsPage() {
       <main className="max-w-7xl mx-auto px-4 lg:px-8 py-8 flex-1 w-full space-y-6">
         <TrainerNav active="questions" />
 
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="sticky top-[4.75rem] z-30 -mx-4 px-4 py-3 bg-slate-950/90 backdrop-blur border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -597,11 +631,16 @@ export default function TrainerQuestionsPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <input
+              ref={searchRef}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search…"
+              aria-label="Search questions"
               className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-sm flex-1 sm:w-56 focus:outline-none focus:border-sky-500"
             />
+            <span className="hidden lg:inline text-[10px] text-slate-600 whitespace-nowrap">
+              / search · j/k · Enter
+            </span>
             <div className="flex rounded-lg border border-slate-800 overflow-hidden">
               <button
                 type="button"
@@ -642,10 +681,18 @@ export default function TrainerQuestionsPage() {
           <button
             type="button"
             disabled={exporting}
-            onClick={() => void exportBank()}
+            onClick={() => void exportBank("json")}
             className="text-xs px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:border-sky-500/40 disabled:opacity-50"
           >
             {exporting ? "Exporting…" : "Export JSON"}
+          </button>
+          <button
+            type="button"
+            disabled={exporting}
+            onClick={() => void exportBank("csv")}
+            className="text-xs px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:border-sky-500/40 disabled:opacity-50"
+          >
+            {exporting ? "Exporting…" : "Export CSV"}
           </button>
           <input
             ref={importInputRef}

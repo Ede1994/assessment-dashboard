@@ -650,6 +650,7 @@ const categories: SeedCategory[] = [
 async function main() {
   console.log("Seeding database...");
 
+  await prisma.assignmentTemplate.deleteMany();
   await prisma.questionAssignment.deleteMany();
   await prisma.submission.deleteMany();
   await prisma.choice.deleteMany();

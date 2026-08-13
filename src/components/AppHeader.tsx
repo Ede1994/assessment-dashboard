@@ -72,6 +72,12 @@ export function AppHeader({
                   {badge}
                 </span>
               ) : null}
+              {progress && progress.total > 0 ? (
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-slate-300 tabular-nums font-medium">
+                  <i className="fa-solid fa-chart-line mr-1.5 text-emerald-400" />
+                  {progress.answered}/{progress.total}
+                </span>
+              ) : null}
             </h1>
             <p className="text-xs text-slate-400">{subtitle}</p>
           </div>
@@ -91,12 +97,6 @@ export function AppHeader({
               {item.label}
             </Link>
           ))}
-          {progress && progress.total > 0 ? (
-            <span className="text-xs px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 tabular-nums">
-              <i className="fa-solid fa-chart-line mr-1.5 text-emerald-400" />
-              {progress.answered}/{progress.total}
-            </span>
-          ) : null}
           {displayName ? (
             <span className="text-xs px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 max-w-[10rem] truncate">
               <i className="fa-solid fa-user mr-1.5 text-sky-400" />

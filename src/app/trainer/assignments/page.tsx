@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { TrainerNav } from "@/components/TrainerNav";
 import { useToast } from "@/components/Toast";
+import { listItemClass, useListKeyboard } from "@/hooks/useListKeyboard";
 import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
 import {
   ASSIGNMENT_PRESETS,
@@ -40,6 +42,14 @@ type QuestionRow = {
   category: { slug: string; name: string; color: string };
 };
 
+type SavedTemplate = {
+  id: string;
+  name: string;
+  description: string;
+  questionIds: string[];
+  questionCount: number;
+};
+
 function toDateInputValue(iso: string | null | undefined) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -72,9 +82,18 @@ export default function TrainerAssignmentsPage() {
   const [copyFromId, setCopyFromId] = useState("");
   const [filterCat, setFilterCat] = useState("all");
   const [search, setSearch] = useState("");
+  const [templates, setTemplates] = useState<SavedTemplate[]>([]);
+  const [templateName, setTemplateName] = useState("");
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [pendingDeleteTemplate, setPendingDeleteTemplate] =
+    useState<SavedTemplate | null>(null);
+  const [pendingOverwrite, setPendingOverwrite] = useState<SavedTemplate | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const dirty =
     !setEquals(selected, savedSelected) ||
@@ -120,6 +139,18 @@ export default function TrainerAssignmentsPage() {
     setExamMode(exam);
     setSavedExamMode(exam);
     setCohortIds(new Set());
+    await loadTemplates();
+  }
+
+  async function loadTemplates() {
+    try {
+      const res = await fetch("/api/assignment-templates");
+      if (!res.ok) return;
+      const data = await res.json();
+      setTemplates(data.templates ?? []);
+    } catch {
+      // templates are optional chrome; assignment page still works
+    }
   }
 
   useEffect(() => {
@@ -200,6 +231,16 @@ export default function TrainerAssignmentsPage() {
     });
   }
 
+  const activeIndex = useListKeyboard({
+    itemCount: visible.length,
+    searchRef,
+    enabled: !pendingDeleteTemplate && !pendingOverwrite,
+    onActivate: (index) => {
+      const item = visible[index];
+      if (item) toggle(item.id);
+    },
+  });
+
   function selectVisible(on: boolean) {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -228,6 +269,95 @@ export default function TrainerAssignmentsPage() {
     if (!ids) return;
     setSelected(new Set(ids));
     setError("");
+  }
+
+  function applySavedTemplate(template: SavedTemplate) {
+    const known = new Set(questions.map((q) => q.id));
+    const ids = template.questionIds.filter((id) => known.has(id));
+    setSelected(new Set(ids));
+    setError("");
+    const dropped = template.questionIds.length - ids.length;
+    toast(
+      dropped > 0
+        ? `Applied “${template.name}” (${ids.length} tasks; ${dropped} missing from bank).`
+        : `Applied “${template.name}” (${ids.length} tasks). Save to assign.`,
+      "info",
+    );
+  }
+
+  async function persistTemplate(overwriteId?: string) {
+    const name = templateName.trim();
+    if (!name) {
+      toast("Name the template first.", "error");
+      return;
+    }
+    setSavingTemplate(true);
+    setError("");
+    try {
+      const questionIds = [...selected];
+      const res = overwriteId
+        ? await fetch(`/api/assignment-templates/${overwriteId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, questionIds }),
+          })
+        : await fetch("/api/assignment-templates", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, questionIds }),
+          });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not save template");
+      toast(
+        overwriteId
+          ? `Updated template “${name}”.`
+          : `Saved template “${name}”.`,
+        "success",
+      );
+      setTemplateName("");
+      setPendingOverwrite(null);
+      await loadTemplates();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Could not save template";
+      setError(msg);
+      toast(msg, "error");
+    } finally {
+      setSavingTemplate(false);
+    }
+  }
+
+  async function saveCurrentAsTemplate() {
+    const name = templateName.trim();
+    if (!name) {
+      toast("Name the template first.", "error");
+      return;
+    }
+    const existing = templates.find(
+      (t) => t.name.toLowerCase() === name.toLowerCase(),
+    );
+    if (existing) {
+      setPendingOverwrite(existing);
+      return;
+    }
+    await persistTemplate();
+  }
+
+  async function confirmDeleteTemplate() {
+    if (!pendingDeleteTemplate) return;
+    const { id, name } = pendingDeleteTemplate;
+    try {
+      const res = await fetch(`/api/assignment-templates/${id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Delete failed");
+      setPendingDeleteTemplate(null);
+      toast(`Deleted template “${name}”.`, "success");
+      await loadTemplates();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Delete failed";
+      toast(msg, "error");
+    }
   }
 
   async function copyFromStudent(sourceId: string) {
@@ -328,8 +458,9 @@ export default function TrainerAssignmentsPage() {
           </h2>
           <p className="text-xs text-slate-400 max-w-3xl">
             Choose questions, set an optional due date, copy from another
-            student, or apply the current set to a cohort. Empty assignment =
-            student temporarily sees the full bank.
+            student, or apply the current set to a cohort. Save a named template
+            to reuse a custom set beyond the built-in CT/MRI/PyTorch presets.
+            Empty assignment = student temporarily sees the full bank.
           </p>
         </section>
 
@@ -441,7 +572,7 @@ export default function TrainerAssignmentsPage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 items-center justify-between">
+            <div className="sticky top-[4.75rem] z-30 -mx-4 px-4 py-3 bg-slate-950/90 backdrop-blur border-b border-slate-800/80 flex flex-wrap gap-2 items-center justify-between">
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -469,16 +600,23 @@ export default function TrainerAssignmentsPage() {
                   </button>
                 ))}
               </div>
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search tasks…"
-                className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-sm w-full sm:w-56 focus:outline-none focus:border-sky-500"
-              />
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <input
+                  ref={searchRef}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search tasks…"
+                  aria-label="Search tasks"
+                  className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-sm w-full sm:w-56 focus:outline-none focus:border-sky-500"
+                />
+                <span className="hidden sm:inline text-[10px] text-slate-600 whitespace-nowrap">
+                  / search · j/k · Enter
+                </span>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2 text-xs items-center">
-              <span className="text-slate-500 mr-1">Presets:</span>
+              <span className="text-slate-500 mr-1">Built-in:</span>
               {ASSIGNMENT_PRESETS.map((p) => (
                 <button
                   key={p.id}
@@ -490,6 +628,33 @@ export default function TrainerAssignmentsPage() {
                   {p.label}
                 </button>
               ))}
+              {templates.length > 0 ? (
+                <>
+                  <span className="text-slate-700 mx-1">|</span>
+                  <span className="text-slate-500 mr-1">Saved:</span>
+                  {templates.map((t) => (
+                    <span key={t.id} className="inline-flex items-stretch">
+                      <button
+                        type="button"
+                        onClick={() => applySavedTemplate(t)}
+                        title={`${t.questionCount} tasks`}
+                        className="px-3 py-1.5 rounded-l-lg bg-violet-950/50 border border-violet-500/30 text-violet-200 hover:bg-violet-900/40"
+                      >
+                        {t.name} ({t.questionCount})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPendingDeleteTemplate(t)}
+                        className="px-2 py-1.5 rounded-r-lg bg-violet-950/50 border border-l-0 border-violet-500/30 text-violet-400/80 hover:text-rose-300"
+                        aria-label={`Delete template ${t.name}`}
+                        title="Delete template"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </>
+              ) : null}
               <span className="text-slate-700 mx-1">|</span>
               <button
                 type="button"
@@ -552,15 +717,19 @@ export default function TrainerAssignmentsPage() {
             </p>
 
             <div className="bg-slate-900 border border-slate-800 rounded-2xl divide-y divide-slate-800 max-h-[28rem] overflow-y-auto custom-scrollbar">
-              {visible.map((q) => {
+              {visible.map((q, index) => {
                 const colors = categoryColors(q.category.color);
                 const on = selected.has(q.id);
                 return (
                   <label
                     key={q.id}
-                    className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-slate-800/40 ${
-                      on ? "bg-sky-500/5" : ""
-                    }`}
+                    data-list-index={index}
+                    className={listItemClass(
+                      activeIndex === index,
+                      `flex items-start gap-3 px-4 py-2.5 sm:py-3 cursor-pointer hover:bg-slate-800/40 ${
+                        on ? "bg-sky-500/5" : ""
+                      }`,
+                    )}
                   >
                     <input
                       type="checkbox"
@@ -606,11 +775,56 @@ export default function TrainerAssignmentsPage() {
                     ? `Save for ${1 + cohortIds.size} students`
                     : "Save assignments"}
               </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  placeholder="Template name"
+                  aria-label="New template name"
+                  className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 w-40 focus:outline-none focus:border-violet-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => void saveCurrentAsTemplate()}
+                  disabled={savingTemplate || !templateName.trim()}
+                  className="px-3 py-2 rounded-lg text-xs border border-violet-500/40 text-violet-200 hover:bg-violet-950/40 disabled:opacity-40"
+                >
+                  {savingTemplate ? "Saving…" : "Save as template"}
+                </button>
+              </div>
               {error ? <span className="text-xs text-rose-400">{error}</span> : null}
             </div>
           </>
         )}
       </main>
+      <ConfirmDialog
+        open={pendingDeleteTemplate != null}
+        title="Delete assignment template?"
+        body={
+          pendingDeleteTemplate
+            ? `Remove “${pendingDeleteTemplate.name}”? This does not change anyone’s current assignments.`
+            : ""
+        }
+        confirmLabel="Delete template"
+        danger
+        onConfirm={() => void confirmDeleteTemplate()}
+        onCancel={() => setPendingDeleteTemplate(null)}
+      />
+      <ConfirmDialog
+        open={pendingOverwrite != null}
+        title="Overwrite existing template?"
+        body={
+          pendingOverwrite
+            ? `A template named “${pendingOverwrite.name}” already exists. Replace it with the current ${selected.size} selected task${selected.size === 1 ? "" : "s"}?`
+            : ""
+        }
+        confirmLabel="Overwrite"
+        busy={savingTemplate}
+        onConfirm={() =>
+          pendingOverwrite ? void persistTemplate(pendingOverwrite.id) : undefined
+        }
+        onCancel={() => setPendingOverwrite(null)}
+      />
     </div>
   );
 }
