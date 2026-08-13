@@ -273,4 +273,200 @@ describe("API integration", () => {
     assert.match(text, /categorySlug/);
     assert.ok(text.split("\n").length > 2);
   });
+
+  test("time spent: student can record time; trainer cannot; invalid delta rejected", async () => {
+    const student = await login("student", "student");
+    const listRes = await apiFetch(student.jar, "/api/questions");
+    const list = (await listRes.json()) as { questions: QuestionDto[] };
+    const qid = list.questions[0]?.id;
+    assert.ok(qid);
+
+    const badDelta = await apiFetch(student.jar, "/api/time-spent", {
+      method: "POST",
+      body: JSON.stringify({ questionId: qid, deltaMs: 10 }),
+    });
+    assert.equal(badDelta.status, 400);
+
+    const first = await apiFetch(student.jar, "/api/time-spent", {
+      method: "POST",
+      body: JSON.stringify({ questionId: qid, deltaMs: 5000 }),
+    });
+    assert.equal(first.status, 200);
+    const firstBody = (await first.json()) as { timeSpentMs: number };
+    assert.ok(firstBody.timeSpentMs >= 5000);
+
+    const second = await apiFetch(student.jar, "/api/time-spent", {
+      method: "POST",
+      body: JSON.stringify({ questionId: qid, deltaMs: 2000 }),
+    });
+    assert.equal(second.status, 200);
+    const secondBody = (await second.json()) as { timeSpentMs: number };
+    assert.ok(secondBody.timeSpentMs >= firstBody.timeSpentMs + 2000);
+
+    const trainer = await login("trainer", "NRAD2026");
+    const trainerRes = await apiFetch(trainer.jar, "/api/time-spent", {
+      method: "POST",
+      body: JSON.stringify({ questionId: qid, deltaMs: 1000 }),
+    });
+    assert.equal(trainerRes.status, 401);
+
+    const anon = await apiFetch(createCookieJar(), "/api/time-spent", {
+      method: "POST",
+      body: JSON.stringify({ questionId: qid, deltaMs: 1000 }),
+    });
+    assert.equal(anon.status, 401);
+  });
+
+  test("clone, grade, categories, users, import, and media", async () => {
+    const student = await login("student", "student");
+    const trainer = await login("trainer", "NRAD2026");
+
+    const studentClone = await apiFetch(student.jar, "/api/questions/x/clone", {
+      method: "POST",
+    });
+    assert.equal(studentClone.status, 401);
+
+    const bankRes = await apiFetch(trainer.jar, "/api/assignments");
+    const bank = (await bankRes.json()) as {
+      questions: Array<{ id: string; type: string }>;
+    };
+    const sourceId = bank.questions[0]?.id;
+    assert.ok(sourceId);
+
+    const cloneRes = await apiFetch(
+      trainer.jar,
+      `/api/questions/${sourceId}/clone`,
+      { method: "POST" },
+    );
+    assert.equal(cloneRes.status, 201);
+    const cloned = (await cloneRes.json()) as {
+      question: { id: string; title: string };
+    };
+    assert.match(cloned.question.title, /copy of/i);
+
+    const listRes = await apiFetch(student.jar, "/api/questions");
+    const list = (await listRes.json()) as { questions: QuestionDto[] };
+    const free = list.questions.find((q) => q.type === "FREE_TEXT");
+    assert.ok(free);
+    const submitRes = await apiFetch(student.jar, "/api/submissions", {
+      method: "POST",
+      body: JSON.stringify({
+        questionId: free.id,
+        textAnswer: "Grade-me test answer.",
+      }),
+    });
+    assert.equal(submitRes.status, 200);
+
+    const subsRes = await apiFetch(trainer.jar, "/api/submissions");
+    const subs = (await subsRes.json()) as {
+      submissions: Array<{
+        id: string;
+        question: { id: string; type: string };
+        user: { username: string };
+      }>;
+    };
+    const target = subs.submissions.find(
+      (s) => s.user.username === "student" && s.question.id === free.id,
+    );
+    assert.ok(target);
+
+    const studentGrade = await apiFetch(
+      student.jar,
+      `/api/submissions/${target.id}/grade`,
+      { method: "PATCH", body: JSON.stringify({ trainerScore: 80 }) },
+    );
+    assert.equal(studentGrade.status, 401);
+
+    const gradeRes = await apiFetch(
+      trainer.jar,
+      `/api/submissions/${target.id}/grade`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          trainerScore: 80,
+          trainerPassed: true,
+          trainerComment: "Solid.",
+          feedbackReleased: true,
+        }),
+      },
+    );
+    assert.equal(gradeRes.status, 200);
+    const graded = (await gradeRes.json()) as {
+      submission: { trainerScore: number; feedbackReleased: boolean };
+    };
+    assert.equal(graded.submission.trainerScore, 80);
+    assert.equal(graded.submission.feedbackReleased, true);
+
+    const catRes = await apiFetch(trainer.jar, "/api/categories", {
+      method: "POST",
+      body: JSON.stringify({
+        name: "API Test Cat",
+        slug: "api-test-cat",
+        icon: "fa-flask",
+        color: "teal",
+      }),
+    });
+    assert.equal(catRes.status, 201);
+    const cat = (await catRes.json()) as { category: { id: string } };
+    const delCat = await apiFetch(
+      trainer.jar,
+      `/api/categories/${cat.category.id}`,
+      { method: "DELETE" },
+    );
+    assert.equal(delCat.status, 200);
+
+    const userRes = await apiFetch(trainer.jar, "/api/users", {
+      method: "POST",
+      body: JSON.stringify({
+        username: "apitestuser",
+        displayName: "API Test User",
+        password: "testpass1",
+        role: "STUDENT",
+      }),
+    });
+    assert.equal(userRes.status, 201);
+
+    const importRes = await apiFetch(trainer.jar, "/api/questions/import", {
+      method: "POST",
+      body: JSON.stringify({
+        questions: [
+          {
+            categorySlug: "python",
+            title: "Imported API test question",
+            prompt: "What is 2+2?",
+            roundLabel: "API",
+            tags: "Test",
+            type: "FREE_TEXT",
+            solution: {
+              idealAnswer: "4",
+              explanation: "Basic arithmetic.",
+            },
+          },
+        ],
+      }),
+    });
+    assert.equal(importRes.status, 200);
+    const imported = (await importRes.json()) as { created: number };
+    assert.equal(imported.created, 1);
+
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    const form = new FormData();
+    form.append("file", new Blob([png], { type: "image/png" }), "dot.png");
+    const mediaRes = await apiFetch(trainer.jar, "/api/media", {
+      method: "POST",
+      body: form,
+    });
+    assert.equal(mediaRes.status, 200);
+    const media = (await mediaRes.json()) as { url: string };
+    assert.match(media.url, /^\/uploads\/.+\.png$/);
+
+    const studentMedia = await apiFetch(student.jar, "/api/media", {
+      method: "POST",
+      body: form,
+    });
+    assert.equal(studentMedia.status, 401);
+  });
 });

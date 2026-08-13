@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 type NavItem = {
   href: string;
@@ -103,6 +104,7 @@ export function AppHeader({
               {displayName}
             </span>
           ) : null}
+          <ThemeToggle />
           <Link
             href="/account"
             className="text-xs px-3 py-1.5 rounded-lg bg-slate-950 text-slate-400 hover:text-sky-300 border border-slate-800 transition"

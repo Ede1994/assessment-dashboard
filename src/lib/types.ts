@@ -40,6 +40,7 @@ export type QuestionListItem = {
   choices: ChoiceDto[];
   answered: boolean;
   mcCorrect: boolean | null;
+  timeSpentMs?: number;
   submission: SubmissionDto | null;
 };
 
@@ -50,6 +51,7 @@ export type ProgressDto = {
   mcAnswered?: number;
   mcCorrect?: number;
   mcScorePct?: number | null;
+  timeSpentMs?: number;
 };
 
 export type SolutionDto = {

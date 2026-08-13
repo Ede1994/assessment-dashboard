@@ -25,6 +25,7 @@ model User {
   displayName  String
   submissions  Submission[]
   assignments  QuestionAssignment[]
+  timeSpent    TimeSpent[]
   createdAt    DateTime             @default(now())
 }
 
@@ -54,6 +55,7 @@ model Question {
   submissions Submission[]
   assignments QuestionAssignment[]
   templates   AssignmentTemplateQuestion[]
+  timeSpent   TimeSpent[]
 }
 
 model Choice {
@@ -129,4 +131,17 @@ model AssignmentTemplateQuestion {
 
   @@unique([templateId, questionId])
   @@index([templateId])
+}
+
+model TimeSpent {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionId  String
+  question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  timeSpentMs Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, questionId])
+  @@index([userId])
 }

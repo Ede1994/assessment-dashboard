@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { TrainerNav } from "@/components/TrainerNav";
+import { formatDuration } from "@/lib/time";
 
 type StudentRow = {
   id: string;
@@ -15,6 +16,7 @@ type StudentRow = {
   mcAnswered: number;
   mcCorrect: number;
   mcScorePct: number | null;
+  timeSpentMs?: number;
 };
 
 export default function TrainerHomePage() {
@@ -122,6 +124,7 @@ export default function TrainerHomePage() {
                       <th className="text-right font-medium px-5 py-3">MC correct</th>
                       <th className="text-right font-medium px-5 py-3">Completed</th>
                       <th className="text-right font-medium px-5 py-3">Free text</th>
+                      <th className="text-right font-medium px-5 py-3">Time</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800">
@@ -166,6 +169,11 @@ export default function TrainerHomePage() {
                         </td>
                         <td className="px-5 py-3 text-right text-slate-400 tabular-nums">
                           {s.freeTextAnswered}
+                        </td>
+                        <td className="px-5 py-3 text-right text-slate-400 tabular-nums">
+                          {(s.timeSpentMs ?? 0) > 0
+                            ? formatDuration(s.timeSpentMs ?? 0)
+                            : "—"}
                         </td>
                       </tr>
                     ))}

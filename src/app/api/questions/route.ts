@@ -14,7 +14,7 @@ export async function GET() {
   const assignedIds =
     user.role === "STUDENT" ? await getAssignedQuestionIds(user.id) : null;
 
-  const [categories, questions, dueRow] = await Promise.all([
+  const [categories, questions, dueRow, timeRows] = await Promise.all([
     prisma.category.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.question.findMany({
       where:
@@ -45,7 +45,17 @@ export async function GET() {
           orderBy: { dueAt: "asc" },
         })
       : Promise.resolve(null),
+    user.role === "STUDENT"
+      ? prisma.timeSpent.findMany({
+          where: { userId: user.id },
+          select: { questionId: true, timeSpentMs: true },
+        })
+      : Promise.resolve([]),
   ]);
+
+  const timeByQuestion = new Map(
+    timeRows.map((t) => [t.questionId, t.timeSpentMs]),
+  );
 
   const payload = questions.map((q) => {
     const raw = q.submissions[0] ?? null;
@@ -62,6 +72,7 @@ export async function GET() {
           updatedAt: raw.updatedAt,
         }
       : null;
+    const timeSpentMs = timeByQuestion.get(q.id) ?? 0;
     return {
       id: q.id,
       title: q.title,
@@ -86,6 +97,7 @@ export async function GET() {
       })),
       answered: Boolean(submission),
       mcCorrect,
+      timeSpentMs,
       submission,
     };
   });
@@ -97,6 +109,7 @@ export async function GET() {
   const freeTextAnswered = payload.filter(
     (q) => q.type === QuestionType.FREE_TEXT && q.answered,
   ).length;
+  const timeSpentMs = payload.reduce((sum, q) => sum + q.timeSpentMs, 0);
 
   return NextResponse.json({
     categories: categories.filter((c) =>
@@ -115,6 +128,7 @@ export async function GET() {
         mcAnswered === 0
           ? null
           : Math.round((mcCorrectCount / mcAnswered) * 100),
+      timeSpentMs,
     },
   });
 }

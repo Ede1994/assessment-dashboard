@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const inputClass =
   "w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500";
@@ -47,6 +48,9 @@ export default function RegisterPage() {
   return (
     <main className="min-h-screen flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md space-y-6">
+        <div className="flex justify-end">
+          <ThemeToggle />
+        </div>
         <div className="text-center space-y-2">
           <h1 className="text-2xl font-bold text-slate-100">Create student account</h1>
           <p className="text-sm text-slate-400">

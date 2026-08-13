@@ -42,7 +42,11 @@ export async function apiFetch(
   const headers = new Headers(init.headers);
   const cookie = cookieHeader(jar);
   if (cookie) headers.set("cookie", cookie);
-  if (init.body && !headers.has("content-type")) {
+  if (
+    init.body &&
+    !headers.has("content-type") &&
+    !(init.body instanceof FormData)
+  ) {
     headers.set("content-type", "application/json");
   }
   const res = await fetch(`${TEST_BASE}${pathname}`, { ...init, headers });

@@ -6,13 +6,16 @@ import { useParams, useRouter } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { LoadingSkeleton } from "@/components/LoadingSkeleton";
 import { MathText } from "@/components/MathText";
+import { useTimeSpent } from "@/hooks/useTimeSpent";
 import { categoryColors } from "@/lib/colors";
+import { formatDuration } from "@/lib/time";
 import type { ChoiceDto, QuestionListItem, SubmissionDto } from "@/lib/types";
 
 type QuestionDetail = Omit<QuestionListItem, "answered"> & {
   submission: SubmissionDto | null;
   examMode?: boolean;
   mcLocked?: boolean;
+  timeSpentMs?: number;
 };
 
 function draftKey(questionId: string) {
@@ -41,6 +44,7 @@ export default function StudentQuestionPage() {
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadedId = useRef<string | null>(null);
   const textRef = useRef<HTMLTextAreaElement | null>(null);
+  const displayMs = useTimeSpent(question?.id, question?.timeSpentMs ?? 0);
 
   useEffect(() => {
     let cancelled = false;
@@ -412,6 +416,10 @@ export default function StudentQuestionPage() {
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-sm font-semibold text-sky-300">Your answer</h3>
               <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                <span className="tabular-nums" title="Time spent on this task">
+                  <i className="fa-regular fa-clock mr-1" />
+                  {formatDuration(displayMs)}
+                </span>
                 {draftHint ? <span>{draftHint}</span> : null}
                 {question.type === "MULTIPLE_CHOICE" && !mcLocked ? (
                   <span>Keys 1–{question.choices.length} to select</span>

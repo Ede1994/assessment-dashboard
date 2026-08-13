@@ -174,7 +174,7 @@ export async function GET() {
   }
 
   // Trainer: all student submissions with solutions + scoreboard
-  const [submissions, students, totalQuestions, mcQuestionCount] =
+  const [submissions, students, totalQuestions, mcQuestionCount, timeRows] =
     await Promise.all([
       prisma.submission.findMany({
         include: {
@@ -215,7 +215,18 @@ export async function GET() {
       }),
       prisma.question.count(),
       prisma.question.count({ where: { type: QuestionType.MULTIPLE_CHOICE } }),
+      prisma.timeSpent.findMany({
+        select: { userId: true, questionId: true, timeSpentMs: true },
+      }),
     ]);
+
+  const timeByUserQuestion = new Map(
+    timeRows.map((t) => [`${t.userId}:${t.questionId}`, t.timeSpentMs]),
+  );
+  const timeByUser = new Map<string, number>();
+  for (const t of timeRows) {
+    timeByUser.set(t.userId, (timeByUser.get(t.userId) ?? 0) + t.timeSpentMs);
+  }
 
   const scoreboard = students.map((s) => {
     const total =
@@ -232,11 +243,16 @@ export async function GET() {
       mcCorrect: score.mcCorrect,
       mcScorePct: score.mcScorePct,
       assigned: s.assignments.length,
+      timeSpentMs: timeByUser.get(s.id) ?? 0,
     };
   });
 
   return NextResponse.json({
-    submissions,
+    submissions: submissions.map((row) => ({
+      ...row,
+      timeSpentMs:
+        timeByUserQuestion.get(`${row.userId}:${row.questionId}`) ?? 0,
+    })),
     students: scoreboard,
     scoreboard,
     bank: {

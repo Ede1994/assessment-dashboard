@@ -4,6 +4,7 @@ import { PrismaClient, QuestionType, Role } from "../src/generated/prisma/client
 import path from "path";
 import { tutorQuestionsEn } from "./tutorQuestionsEn";
 import { ctQuestionsEn } from "./ctQuestionsEn";
+import { mriQuestionsEn } from "./mriQuestionsEn";
 import { interviewQuestionsEn } from "./interviewQuestionsEn";
 import { hashPassword } from "../src/lib/password";
 import { isMriHeavy } from "../src/lib/assignmentPresets";
@@ -210,7 +211,7 @@ const categories: SeedCategory[] = [
         prompt:
           "Unlike CT Hounsfield units, MRI intensities have no absolute physical scale. Why does a global z-score $\\frac{x-\\mu}{\\sigma}$ over the entire scan (including air background) cause problems, and how do you fix it?",
         roundLabel: "Round 7",
-        tags: "MRT Preprocessing",
+        tags: "MRI MRT Preprocessing",
         type: QuestionType.FREE_TEXT,
         idealAnswer:
           "Air background (~70% of voxels near 0) pulls μ down and inflates σ, washing out tissue contrast. Compute μ_fg / σ_fg on a foreground mask (Otsu or skull-strip), optionally clip percentiles and apply Nyúl histogram standardization across scanners.",
@@ -278,7 +279,7 @@ const categories: SeedCategory[] = [
         prompt:
           "Explain why a trained CT Hounsfield-normalized model cannot be naively applied to T1-weighted MRI volumes of the same anatomy.",
         roundLabel: "CT-2",
-        tags: "Modality Semantics",
+        tags: "CT MRI Modality Semantics",
         type: QuestionType.FREE_TEXT,
         idealAnswer:
           "CT intensities are calibrated HU with physical meaning (water=0, air=−1000). MRI intensities are relative, sequence- and scanner-dependent, with different contrast mechanisms (T1/T2/FLAIR). Distributions, noise, and artifacts differ; you need modality-specific normalization and usually separate models or domain adaptation.",
@@ -290,7 +291,7 @@ const categories: SeedCategory[] = [
         prompt:
           "Thick CT slices (e.g. 5 mm) make small pulmonary nodules harder to segment accurately. What physical effect is primarily responsible?",
         roundLabel: "CT-3",
-        tags: "Partial Volume",
+        tags: "CT Partial Volume",
         type: QuestionType.MULTIPLE_CHOICE,
         choices: [
           { label: "Beam hardening only", isCorrect: false },
@@ -320,7 +321,7 @@ const categories: SeedCategory[] = [
         prompt:
           "A brain MRI shows slowly varying brightness across the FOV due to B1 inhomogeneity. Which preprocessing is commonly applied before intensity normalization?",
         roundLabel: "MRI-2",
-        tags: "N4 Bias Correction",
+        tags: "MRI N4 Bias Correction",
         type: QuestionType.MULTIPLE_CHOICE,
         choices: [
           { label: "Histogram equalization only", isCorrect: false },
@@ -650,6 +651,7 @@ const categories: SeedCategory[] = [
 async function main() {
   console.log("Seeding database...");
 
+  await prisma.timeSpent.deleteMany();
   await prisma.assignmentTemplate.deleteMany();
   await prisma.questionAssignment.deleteMany();
   await prisma.submission.deleteMany();
@@ -661,7 +663,12 @@ async function main() {
 
   // Merge tutor + CT quiz questions into category buckets (skip unknown slugs).
   const bySlug = new Map(categories.map((c) => [c.slug, c]));
-  for (const tq of [...tutorQuestionsEn, ...ctQuestionsEn, ...interviewQuestionsEn]) {
+  for (const tq of [
+    ...tutorQuestionsEn,
+    ...ctQuestionsEn,
+    ...mriQuestionsEn,
+    ...interviewQuestionsEn,
+  ]) {
     const cat = bySlug.get(tq.categorySlug);
     if (!cat) {
       console.warn(`Unknown category for imported question: ${tq.categorySlug}`);

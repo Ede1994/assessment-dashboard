@@ -8,14 +8,14 @@ Last updated: 2026-08-13
 
 ## Progress snapshot (2026-08-13)
 
-Solid prototype: auth, CRUD, assignments (due/cohort/exam/**named templates**), media uploads, bank import/export (JSON + CSV) + list/preview, MC + free-text grading, AI assist, student QoL, keyboard list nav, Docker volume mounts, CI, ~110 questions. Main remaining gaps are **time-spent tracking**, **content tagging cleanup**, and a **light theme**.
+Solid prototype: auth, CRUD, assignments (due/cohort/exam/named templates), media, bank import/export, grading, AI assist, time-spent tracking, light theme, keyboard nav, Docker, CI, ~115 questions. Remaining: **near-duplicate content review** and optional extra tutor HTML imports.
 
 ---
 
 ## Open
 
 ### Product / features
-- [ ] Optional time-spent tracking on assignments
+- [ ] (time-spent tracking shipped)
 
 ### Student UX / QoL
 - [ ] (MC keys + autosize textarea + Ctrl/⌘+Enter shipped)
@@ -24,20 +24,24 @@ Solid prototype: auth, CRUD, assignments (due/cohort/exam/**named templates**), 
 - [ ] (bank list/bulk/preview/import-export shipped)
 
 ### UI polish / accessibility
-- [ ] (keyboard `/` `j`/`k`, focus traps, reduced-motion, sticky filters shipped)
+- [ ] (keyboard `/` `j`/`k`, focus traps, reduced-motion, sticky filters, light theme shipped)
 
 ### Engineering / polish
-- [ ] Expand automated tests beyond current API smoke tests (users, categories, rate-limit, grade, clone, media, import)
-- [ ] Optional light theme toggle (currently dark-only)
+- [ ] (API tests expanded: templates, CSV, time spent, clone, grade, categories, users, import, media)
 
 ### Content
 - [ ] Review remaining near-duplicates between template bank and tutor bank
-- [ ] Add more CT-only / MRI-only tagged questions for cleaner assignment filters
 - [ ] Optional: import more modules from other tutor HTML files if provided
 
 ---
 
 ## Done
+
+### Time spent, light theme, CT/MRI tags, more API tests (2026-08-13)
+- [x] Time-spent tracking (`TimeSpent` + `POST /api/time-spent`); live timer on answer page; trainer scoreboard/submissions/CSV
+- [x] Light/dark theme toggle (header + login/register; `localStorage`)
+- [x] CT-only preset + extra CT/MRI tagged questions (`ctQuestionsEn` + `mriQuestionsEn`)
+- [x] API tests: time spent, clone, grade, categories, users, import, media
 
 ### Named templates + bank CSV + keyboard/a11y (2026-08-13)
 - [x] Named assignment templates (`AssignmentTemplate` + `/api/assignment-templates`); save/apply/overwrite/delete on Assign tasks

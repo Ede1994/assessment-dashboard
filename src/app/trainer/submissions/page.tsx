@@ -7,6 +7,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { MathText } from "@/components/MathText";
 import { TrainerNav } from "@/components/TrainerNav";
 import { useToast } from "@/components/Toast";
+import { formatDuration } from "@/lib/time";
 
 type StudentRow = {
   id: string;
@@ -17,6 +18,7 @@ type StudentRow = {
   mcCorrect?: number;
   mcAnswered?: number;
   mcScorePct?: number | null;
+  timeSpentMs?: number;
 };
 
 type SubmissionRow = {
@@ -31,6 +33,7 @@ type SubmissionRow = {
   feedbackReleased: boolean;
   trainerGradedAt: string | null;
   updatedAt: string;
+  timeSpentMs?: number;
   user: { id: string; username: string; displayName: string };
   selectedChoice: { id: string; label: string; isCorrect: boolean } | null;
   question: {
@@ -317,6 +320,7 @@ function TrainerSubmissionsContent() {
       "trainer_comment",
       "feedback_released",
       "updated_at",
+      "time_spent_ms",
       "ai_feedback",
     ];
     const lines = [header.join(",")];
@@ -345,6 +349,7 @@ function TrainerSubmissionsContent() {
           s.trainerComment ?? "",
           s.feedbackReleased ? "true" : "false",
           s.updatedAt,
+          s.timeSpentMs ?? 0,
           s.aiFeedback ?? "",
         ]
           .map((cell) => escape(String(cell)))
@@ -598,6 +603,15 @@ function TrainerSubmissionsContent() {
                         <span className="text-slate-300">{s.user.displayName}</span>{" "}
                         (@{s.user.username}) •{" "}
                         {new Date(s.updatedAt).toLocaleString()}
+                        {(s.timeSpentMs ?? 0) > 0 ? (
+                          <>
+                            {" "}
+                            •{" "}
+                            <span className="tabular-nums">
+                              {formatDuration(s.timeSpentMs ?? 0)} on task
+                            </span>
+                          </>
+                        ) : null}
                       </p>
                     </div>
                     {s.question.type === "MULTIPLE_CHOICE" && s.selectedChoice ? (

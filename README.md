@@ -134,7 +134,7 @@ Seed data still bootstraps categories and the initial bank via `npm run db:seed`
 
 ## Assignments
 
-Trainers open **Assign tasks** (`/trainer/assignments`), pick a student, then select individual questions, whole categories (+/−), built-in presets (**CT-track**, **MRI-track**, **PyTorch-only**), or **saved named templates**. Save the current selection as a reusable template (overwrite if the name already exists). Optional **due date**, **exam mode** (soft-locks MC after first submit), **copy from another student**, and **cohort** multi-select apply the same set to several students at once. Saving replaces each target student’s assignment set. Students with no assignments temporarily see the full bank; due dates appear on the student dashboard with overdue highlighting.
+Trainers open **Assign tasks** (`/trainer/assignments`), pick a student, then select individual questions, whole categories (+/−), built-in presets (**CT-track**, **CT-only**, **MRI-track**, **PyTorch-only**), or **saved named templates**. Save the current selection as a reusable template (overwrite if the name already exists). Optional **due date**, **exam mode** (soft-locks MC after first submit), **copy from another student**, and **cohort** multi-select apply the same set to several students at once. Saving replaces each target student’s assignment set. Students with no assignments temporarily see the full bank; due dates appear on the student dashboard with overdue highlighting.
 
 ## Keyboard shortcuts
 
@@ -154,7 +154,7 @@ Trainers manage categories in the UI at `/trainer/categories` (create / rename /
 
 ## Question bank content
 
-Seeded from the medical interview-prep template plus the Deep Learning in Medical Imaging tutor FAQ (English, near-duplicates skipped), plus an 8-question CT fundamentals quiz (`prisma/ctQuestionsEn.ts`, with FBP figure at `public/seed-assets/ct/fbp-reconstructions.png`), plus 36 free-text interview Q&As from [amine0110/Medical-Imaging-Interview-Questions-Answers](https://github.com/amine0110/Medical-Imaging-Interview-Questions-Answers) (`prisma/interviewQuestionsEn.ts`; skipped overlap on class imbalance, metrics overview, and U-Net). Categories: PyTorch, Python, medical data, AI/DL, DL fundamentals, CT & MRI, DICOM, governance/MDR, U-Net architectures.
+Seeded from the medical interview-prep template plus the Deep Learning in Medical Imaging tutor FAQ (English, near-duplicates skipped), plus a 10-question CT fundamentals quiz (`prisma/ctQuestionsEn.ts`, with FBP figure at `public/seed-assets/ct/fbp-reconstructions.png`), plus 3 MRI-only items (`prisma/mriQuestionsEn.ts`), plus 36 free-text interview Q&As from [amine0110/Medical-Imaging-Interview-Questions-Answers](https://github.com/amine0110/Medical-Imaging-Interview-Questions-Answers) (`prisma/interviewQuestionsEn.ts`; skipped overlap on class imbalance, metrics overview, and U-Net). Categories: PyTorch, Python, medical data, AI/DL, DL fundamentals, CT & MRI, DICOM, governance/MDR, U-Net architectures.
 
 ## Useful scripts
 
@@ -165,7 +165,7 @@ npm run db:seed      # reset users, questions, and demo assignments
 npm run db:reset     # force-reset DB then seed
 npm run build        # production build
 npm start            # production server (after build); also uses port 3000 by default
-npm test             # API integration tests (auth, assignment filter, MC submit)
+npm test             # API integration tests (auth, assignments, templates, time spent, clone/grade/users/…)
 ```
 
 ## Grading & scoreboard
@@ -173,11 +173,13 @@ npm test             # API integration tests (auth, assignment filter, MC submit
 - **Multiple choice** is auto-graded from `Choice.isCorrect` when a student saves an answer.
 - Students see Correct / Incorrect on their own MC answers (not the answer key for other choices).
 - Trainers can **manually grade free-text** on `/trainer/submissions` (score 0–100, pass/fail, comment) and optionally **release feedback** so the student sees it on the answer page.
-- Trainers see an **MC scoreboard** on `/trainer` (correct/answered %, completion, free-text count). Click a student to open their filtered submissions.
+- Trainers see an **MC scoreboard** on `/trainer` (correct/answered %, completion, free-text count, time spent). Click a student to open their filtered submissions.
 - Trainers can **Export CSV** or **Export PDF** (browser print) of filtered submissions on `/trainer/submissions`.
 - Question bank **Export CSV** is available next to Export JSON on `/trainer/questions`.
 - Trainers can **email a progress digest** for one student (requires SMTP env; see below).
 - Question bank supports **Clone** (duplicates prompt, solution, and choices; no submissions).
+- **Time spent** on a question is tracked while the answer page is visible (paused when the tab is hidden). Students see a live timer; trainers see totals on the scoreboard and each submission. Viewing time does **not** count as an answer.
+- **Light theme** toggle in the header (and on login/register); preference is stored in `localStorage`.
 
 ## AI assist (Open WebUI / Ollama)
 

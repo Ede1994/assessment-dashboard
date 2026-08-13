@@ -63,7 +63,7 @@ Last updated: 2026-08-13
 
 API: /api/auth/*, /api/questions, /api/questions/[id]/clone, /api/questions/export|import|bulk-delete,
      /api/submissions, /api/submissions/[id]/grade, /api/submissions/[id]/ai-review,
-     /api/solutions, /api/assignments, /api/assignment-templates, /api/categories, /api/users
+     /api/solutions, /api/assignments, /api/assignment-templates, /api/time-spent, /api/categories, /api/users
 ```
 
 - Prisma client generated to `src/generated/prisma` (gitignored); `postinstall` / `prisma generate`.
@@ -71,7 +71,9 @@ API: /api/auth/*, /api/questions, /api/questions/[id]/clone, /api/questions/expo
 - Seed: `prisma/seed.ts` + `prisma/tutorQuestionsEn.ts`; run `npm run db:seed` or `db:reset`.
 - Submission trainer fields: `trainerScore`, `trainerPassed`, `trainerComment`, `feedbackReleased`, `trainerGradedAt`. Student revise clears them (same as AI feedback).
 - Assignment `dueAt` + `examMode` (per-student set). Cohort save via `studentIds[]` on PUT `/api/assignments`.
-- Named assignment templates: `AssignmentTemplate` + join rows; trainer CRUD at `/api/assignment-templates`. Built-in CT/MRI/PyTorch presets stay in `src/lib/assignmentPresets.ts`.
+- Named assignment templates: `AssignmentTemplate` + join rows; trainer CRUD at `/api/assignment-templates`. Built-in CT/MRI/PyTorch presets stay in `src/lib/assignmentPresets.ts` (includes **CT-only**).
+- Time spent: `TimeSpent` rows (not submissions) so viewing a question does not mark it answered. `POST /api/time-spent` `{ questionId, deltaMs }` (1s–120s). Client heartbeat in `useTimeSpent`.
+- Theme: `html.dark` default; `html.light` remaps slate palette. `localStorage.assessment-theme`; toggle in `ThemeToggle`.
 - Trainer uploads land in `public/uploads` (gitignored except `.gitkeep`).
 
 ---
@@ -101,6 +103,13 @@ MRI-heavy filter used for `student2` seed and CT-track preset (regex-ish on titl
 ---
 
 ## Session log
+
+### 2026-08-13 — Time spent, light theme, CT/MRI tags, more tests
+- User asked to tackle the next TODOs.
+- `TimeSpent` model + `/api/time-spent`; live timer on the student answer page; totals on dashboard, trainer scoreboard, submissions, CSV. Hidden tabs pause.
+- Light theme toggle (header + login/register) with FOUC-safe `localStorage` init.
+- Extra CT (HU, pitch) and MRI (T1/T2, FLAIR, k-space) questions; **CT-only** assignment preset; clearer CT/MRI tags.
+- API tests expanded (time spent, clone, grade, categories, users, import, media). After pull: `npx prisma db push` then `npm run db:seed` to load new questions.
 
 ### 2026-08-13 — Named templates, bank CSV, keyboard/a11y
 - User asked to read the repo and implement the next features.

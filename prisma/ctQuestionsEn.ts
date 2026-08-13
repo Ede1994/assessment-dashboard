@@ -115,7 +115,7 @@ export const ctQuestionsEn: CtSeedQuestion[] = [
     prompt:
       "Which of the following statements regarding Dual-energy CT (DECT) is/are true? (select all that apply)\n\nA) DECT uses two identical CT scans which only vary in their tube currents.\nB) The different basis materials reconstructed with DECT do not have to be actual real chemical elements or compounds.\nC) DECT can be realized with two identical CT scans that only vary in their tube voltages.\nD) DECT can be realized with a single CT scan using a dual-layer detector.\n\nList the letters of all true statements.",
     roundLabel: "CT-Q5",
-    tags: "DECT Dual Energy",
+    tags: "CT DECT Dual Energy",
     type: QuestionType.FREE_TEXT,
     idealAnswer:
       "B, C, and D. DECT needs spectral diversity (e.g. two kV settings or a dual-layer detector), not merely different mA. Basis materials can be abstract basis functions, not necessarily real chemical elements.",
@@ -128,7 +128,7 @@ export const ctQuestionsEn: CtSeedQuestion[] = [
     prompt:
       "Which description is correct about material decomposition? (select all that apply)\n\nA) Material decomposition is based on linear combination of X-rays energy.\nB) Material decomposition is based on linear combination of materials’ absorption coefficient.\nC) Image-based material decomposition doesn’t suffer from beam-hardening artifacts.\nD) pZ decomposition is not able to do chemistry analysis. (pZ: Compton + photoelectric → effective atomic number and density)\nE) Neural networks can be used to do material decomposition.\n\nList the letters of all correct descriptions.",
     roundLabel: "CT-Q6",
-    tags: "Material Decomposition DECT",
+    tags: "CT Material Decomposition DECT",
     type: QuestionType.FREE_TEXT,
     idealAnswer:
       "B and E. Material decomposition models attenuation as a linear combination of basis materials’ absorption coefficients; learning-based / neural approaches can also perform decomposition. Image-based methods can still suffer from beam hardening; pZ methods can support chemistry-related analysis via Z_eff / density.",
@@ -141,7 +141,7 @@ export const ctQuestionsEn: CtSeedQuestion[] = [
     prompt:
       "Which statement about filtered back projection (FBP) reconstruction is incorrect?\n\nA) It is fast and deterministic.\nB) Metal implants generate stripe artifacts in the reconstructed images.\nC) It includes the statistic property of the data.\nD) Based on the analytical inversion of the Radon transform.",
     roundLabel: "CT-Q7",
-    tags: "FBP Reconstruction",
+    tags: "CT FBP Reconstruction",
     type: QuestionType.MULTIPLE_CHOICE,
     choices: [
       { label: "It is fast and deterministic.", isCorrect: false },
@@ -170,11 +170,49 @@ export const ctQuestionsEn: CtSeedQuestion[] = [
     prompt:
       "What went wrong with the FBP reconstruction here?\n\n![FBP reconstruction comparison: original vs Reconstruction 1–3](/seed-assets/ct/fbp-reconstructions.png)\n\nFor Reconstruction 1, 2, and 3, name the defect relative to the original image.",
     roundLabel: "CT-Q8",
-    tags: "FBP Artifacts Sampling",
+    tags: "CT FBP Artifacts Sampling",
     type: QuestionType.FREE_TEXT,
     idealAnswer:
       "Reconstruction 1: missing filter (unfiltered / simple back-projection → blur).\nReconstruction 2: missing angles (insufficient angular coverage, min ~180°; incomplete data → Tuy–Smith condition violated).\nReconstruction 3: few / sparse views (angular undersampling → aliasing; Crowther criterion violated).",
     explanation:
       "Visual comparison of Shepp–Logan FBP failure modes: no ramp filter, limited angle, and sparse-view streaking.",
+  },
+  {
+    categorySlug: "ct-mri",
+    title: "Hounsfield Units of Air, Water, and Bone",
+    prompt:
+      "In calibrated CT, which Hounsfield unit (HU) values are conventionally assigned to air and water?",
+    roundLabel: "CT-Q9",
+    tags: "CT Hounsfield Calibration",
+    type: QuestionType.MULTIPLE_CHOICE,
+    choices: [
+      { label: "Air = 0 HU, water = 1000 HU", isCorrect: false },
+      { label: "Air = −1000 HU, water = 0 HU", isCorrect: true },
+      { label: "Air = −100 HU, water = 100 HU", isCorrect: false },
+      { label: "Air = 0 HU, water = −1000 HU", isCorrect: false },
+    ],
+    idealAnswer:
+      "By definition water is 0 HU and air is −1000 HU. Cortical bone is typically several hundred to 1000+ HU depending on density.",
+    explanation:
+      "HU calibration is a core CT-only fact and should not be confused with relative MRI intensities.",
+  },
+  {
+    categorySlug: "ct-mri",
+    title: "Helical Pitch in CT",
+    prompt:
+      "Pitch in helical CT is table travel per rotation divided by collimated beam width. What is the main trade-off of increasing pitch (e.g. from 1.0 to 1.5)?",
+    roundLabel: "CT-Q10",
+    tags: "CT Pitch Helical",
+    type: QuestionType.MULTIPLE_CHOICE,
+    choices: [
+      { label: "Longer scan time with lower noise", isCorrect: false },
+      { label: "Faster coverage, typically higher noise / more interpolation artifacts", isCorrect: true },
+      { label: "Better z-resolution with no dose change", isCorrect: false },
+      { label: "Pitch only exists in sequential (axial) CT", isCorrect: false },
+    ],
+    idealAnswer:
+      "Higher pitch covers more z-range per rotation (faster, often lower dose) but undersamples the helix, increasing noise and interpolation artifacts. Pitch < 1 overlaps rotations.",
+    explanation:
+      "Pitch is a CT acquisition parameter with no MRI analogue.",
   },
 ];

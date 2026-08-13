@@ -8,6 +8,7 @@ import { LoadingSkeleton } from "@/components/LoadingSkeleton";
 import { MathText } from "@/components/MathText";
 import { listItemClass, useListKeyboard } from "@/hooks/useListKeyboard";
 import { categoryColors } from "@/lib/colors";
+import { formatDuration } from "@/lib/time";
 import type { CategoryDto, ProgressDto, QuestionListItem } from "@/lib/types";
 
 type StatusFilter = "all" | "unanswered" | "answered" | "incorrect";
@@ -209,7 +210,7 @@ export default function StudentDashboardPage() {
           </div>
 
           {!loading && progress.total > 0 ? (
-            <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3 relative">
+            <div className="mt-5 grid grid-cols-2 sm:grid-cols-5 gap-3 relative">
               <ProgressStat
                 label="Complete"
                 value={`${pctComplete}%`}
@@ -237,6 +238,11 @@ export default function StudentDashboardPage() {
                 label="Free text"
                 value={String(progress.freeTextAnswered ?? 0)}
                 detail="submitted"
+              />
+              <ProgressStat
+                label="Time spent"
+                value={formatDuration(progress.timeSpentMs ?? 0)}
+                detail="on assigned tasks"
               />
             </div>
           ) : null}
@@ -353,6 +359,12 @@ export default function StudentDashboardPage() {
                       <span className="text-xs text-slate-500 border border-slate-800 px-2 py-1 rounded-full">
                         {q.type === "FREE_TEXT" ? "Free text" : "Multiple choice"}
                       </span>
+                      {(q.timeSpentMs ?? 0) > 0 ? (
+                        <span className="text-xs text-slate-500 border border-slate-800 px-2 py-1 rounded-full tabular-nums">
+                          <i className="fa-regular fa-clock mr-1" />
+                          {formatDuration(q.timeSpentMs ?? 0)}
+                        </span>
+                      ) : null}
                       <h3 className="text-base font-bold text-slate-100">{q.title}</h3>
                     </div>
                     {q.answered ? (

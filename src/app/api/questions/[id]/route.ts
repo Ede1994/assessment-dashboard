@@ -25,19 +25,27 @@ export async function GET(_request: Request, { params }: Params) {
     }
   }
 
-  const question = await prisma.question.findUnique({
-    where: { id },
-    include: {
-      category: true,
-      choices: { orderBy: { sortOrder: "asc" } },
-      solution: true,
-      submissions: {
-        where: { userId: user.id },
-        take: 1,
-        include: { selectedChoice: { select: { isCorrect: true } } },
+  const [question, timeRow] = await Promise.all([
+    prisma.question.findUnique({
+      where: { id },
+      include: {
+        category: true,
+        choices: { orderBy: { sortOrder: "asc" } },
+        solution: true,
+        submissions: {
+          where: { userId: user.id },
+          take: 1,
+          include: { selectedChoice: { select: { isCorrect: true } } },
+        },
       },
-    },
-  });
+    }),
+    user.role === "STUDENT"
+      ? prisma.timeSpent.findUnique({
+          where: { userId_questionId: { userId: user.id, questionId: id } },
+          select: { timeSpentMs: true },
+        })
+      : Promise.resolve(null),
+  ]);
 
   if (!question) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -101,6 +109,7 @@ export async function GET(_request: Request, { params }: Params) {
     mcCorrect,
     examMode,
     mcLocked,
+    timeSpentMs: timeRow?.timeSpentMs ?? 0,
     submission,
   });
 }
