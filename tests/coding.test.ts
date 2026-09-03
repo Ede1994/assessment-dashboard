@@ -3,10 +3,14 @@ import { describe, test } from "node:test";
 import {
   BLANK_TOKEN,
   answersMatch,
+  codingFileName,
+  codingLanguageLabel,
+  codingLanguagesList,
   countBlanks,
   encodeCodingAnswer,
   fillBlanks,
   gradeBlanks,
+  isCodingLanguage,
   parseCodingAnswer,
   scaffoldLines,
 } from "../src/lib/coding";
@@ -43,5 +47,13 @@ describe("coding blanks", () => {
     assert.ok(parsed);
     assert.equal(parsed.v, 1);
     assert.deepEqual(parsed.blanks, ["sum"]);
+  });
+
+  test("recognizes MATLAB as a coding language", () => {
+    assert.equal(isCodingLanguage("MATLAB"), true);
+    assert.equal(isCodingLanguage("RUBY"), false);
+    assert.equal(codingFileName("MATLAB"), "script.m");
+    assert.equal(codingLanguageLabel("MATLAB"), "MATLAB");
+    assert.match(codingLanguagesList(), /MATLAB/);
   });
 });

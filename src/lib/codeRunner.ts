@@ -1,3 +1,5 @@
+import { codingMeta } from "@/lib/coding";
+
 export type CodeRunResult = {
   ok: boolean;
   stdout: string;
@@ -13,17 +15,13 @@ type WorkerMessage = {
   status?: string;
 };
 
-function workerUrl(language: string): string {
-  return language === "JAVASCRIPT"
-    ? "/workers/js-runner.js"
-    : "/workers/py-runner.js";
-}
-
 export function runStudentCode(
   language: string,
   code: string,
-  timeoutMs = language === "JAVASCRIPT" ? 5_000 : 20_000,
+  timeoutMs?: number,
 ): { promise: Promise<CodeRunResult>; cancel: () => void } {
+  const meta = codingMeta(language);
+  const limit = timeoutMs ?? meta.timeoutMs;
   let worker: Worker | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let settled = false;
@@ -39,7 +37,10 @@ export function runStudentCode(
     };
 
     try {
-      worker = new Worker(workerUrl(language));
+      worker = new Worker(
+        meta.workerUrl,
+        meta.workerType === "module" ? { type: "module" } : undefined,
+      );
     } catch {
       finish({
         ok: false,
@@ -73,9 +74,9 @@ export function runStudentCode(
       finish({
         ok: false,
         stdout: "",
-        stderr: `Timed out after ${Math.round(timeoutMs / 1000)}s.`,
+        stderr: `Timed out after ${Math.round(limit / 1000)}s.`,
       });
-    }, timeoutMs);
+    }, limit);
     worker.postMessage({ id, code });
   });
 

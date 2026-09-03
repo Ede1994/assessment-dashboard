@@ -569,4 +569,96 @@ describe("API integration", () => {
     assert.ok(row?.answered);
     assert.equal(row?.codingCorrect, true);
   });
+
+  test("matlab coding exercise: trainer authors blanks, student cannot see answers", async () => {
+    const trainer = await login("trainer", "NRAD2026");
+    const catsRes = await apiFetch(trainer.jar, "/api/categories");
+    const cats = (await catsRes.json()) as {
+      categories: Array<{ id: string; slug: string }>;
+    };
+    const matlab = cats.categories.find((c) => c.slug === "matlab");
+    assert.ok(matlab);
+
+    const createRes = await apiFetch(trainer.jar, "/api/questions", {
+      method: "POST",
+      body: JSON.stringify({
+        categoryId: matlab.id,
+        title: "API MATLAB blank test",
+        prompt: "Fill the blank so the script prints 6.",
+        roundLabel: "API-ML",
+        tags: "Coding",
+        type: "CODING",
+        codingLanguage: "MATLAB",
+        starterCode: "disp(____([1, 2, 3]));\n",
+        blankAnswers: ["sum"],
+        explanation: "sum adds the numbers.",
+        idealAnswer: "sum",
+      }),
+    });
+    assert.equal(createRes.status, 201);
+    const created = (await createRes.json()) as {
+      question: {
+        id: string;
+        type: string;
+        starterCode: string | null;
+        codingLanguage?: string | null;
+      };
+    };
+    assert.equal(created.question.type, "CODING");
+    assert.equal(created.question.codingLanguage, "MATLAB");
+    assert.match(String(created.question.starterCode), /____/);
+
+    const trainerDetailRes = await apiFetch(
+      trainer.jar,
+      `/api/questions/${created.question.id}`,
+    );
+    assert.equal(trainerDetailRes.status, 200);
+    const trainerDetail = (await trainerDetailRes.json()) as {
+      solution?: { blankAnswers?: string[] };
+    };
+    assert.deepEqual(trainerDetail.solution?.blankAnswers, ["sum"]);
+
+    const student = await login("student", "student");
+    const listRes = await apiFetch(student.jar, "/api/questions");
+    assert.equal(listRes.status, 200);
+    const list = (await listRes.json()) as { questions: QuestionDto[] };
+    const coding = list.questions.find((q) =>
+      /1-based indexing into a list of scan paths/i.test(q.title),
+    );
+    assert.ok(coding, "expected seeded MATLAB coding exercise");
+
+    const detailRes = await apiFetch(student.jar, `/api/questions/${coding.id}`);
+    assert.equal(detailRes.status, 200);
+    const detail = (await detailRes.json()) as {
+      type: string;
+      codingLanguage?: string;
+      starterCode: string;
+      solution?: unknown;
+      blankCount: number;
+    };
+    assert.equal(detail.type, "CODING");
+    assert.equal(detail.codingLanguage, "MATLAB");
+    assert.match(detail.starterCode, /____/);
+    assert.equal(detail.blankCount, 2);
+    assert.equal(detail.solution, undefined);
+
+    const right = await apiFetch(student.jar, "/api/submissions", {
+      method: "POST",
+      body: JSON.stringify({
+        questionId: coding.id,
+        textAnswer: JSON.stringify({
+          v: 1,
+          blanks: ["numel", "2"],
+          code: "n = numel(paths);\n",
+        }),
+      }),
+    });
+    assert.equal(right.status, 200);
+    const rightBody = (await right.json()) as {
+      grading: { isCorrect: boolean };
+      submission: { codingPassed: boolean };
+    };
+    assert.equal(rightBody.grading.isCorrect, true);
+    assert.equal(rightBody.submission.codingPassed, true);
+  });
 });

@@ -1,7 +1,56 @@
 /** Placeholder students must replace in coding-exercise scaffolds. */
 export const BLANK_TOKEN = "____";
 
-export type CodingLanguageName = "PYTHON" | "JAVASCRIPT";
+export const CODING_LANGUAGE_NAMES = [
+  "PYTHON",
+  "JAVASCRIPT",
+  "MATLAB",
+] as const;
+
+export type CodingLanguageName = (typeof CODING_LANGUAGE_NAMES)[number];
+
+export type CodingLanguageMeta = {
+  label: string;
+  fileName: string;
+  workerUrl: string;
+  workerType?: "classic" | "module";
+  timeoutMs: number;
+  loadingHint?: string;
+  defaultStarter: string;
+  defaultBlankAnswers: string[];
+};
+
+export const CODING_LANGUAGES: Record<CodingLanguageName, CodingLanguageMeta> = {
+  PYTHON: {
+    label: "Python",
+    fileName: "script.py",
+    workerUrl: "/workers/py-runner.js",
+    timeoutMs: 20_000,
+    loadingHint:
+      "Loading Python runtime (first run may take a few seconds)…",
+    defaultStarter: `values = [1, 2, 3]\ntotal = ____(values)\nprint(total)\n`,
+    defaultBlankAnswers: ["sum"],
+  },
+  JAVASCRIPT: {
+    label: "JavaScript",
+    fileName: "script.js",
+    workerUrl: "/workers/js-runner.js",
+    timeoutMs: 5_000,
+    defaultStarter: `const values = [1, 2, 3];\nconst total = ____(values);\nconsole.log(total);\n`,
+    defaultBlankAnswers: ["sum"],
+  },
+  MATLAB: {
+    label: "MATLAB",
+    fileName: "script.m",
+    workerUrl: "/workers/matlab-runner.js?v=2",
+    workerType: "module",
+    timeoutMs: 60_000,
+    loadingHint:
+      "Loading MATLAB runtime (first run may take a few seconds)…",
+    defaultStarter: `values = [1, 2, 3];\ntotal = ____(values);\ndisp(total);\n`,
+    defaultBlankAnswers: ["sum"],
+  },
+};
 
 export type CodingAnswerPayload = {
   v: 1;
@@ -24,11 +73,33 @@ export type BlankGrade = {
 export function isCodingLanguage(
   value: string,
 ): value is CodingLanguageName {
-  return value === "PYTHON" || value === "JAVASCRIPT";
+  return (CODING_LANGUAGE_NAMES as readonly string[]).includes(value);
+}
+
+export function codingLanguagesList(): string {
+  const names = [...CODING_LANGUAGE_NAMES];
+  if (names.length <= 1) return names[0] ?? "";
+  if (names.length === 2) return `${names[0]} or ${names[1]}`;
+  return `${names.slice(0, -1).join(", ")}, or ${names[names.length - 1]}`;
+}
+
+export function codingMeta(
+  language: string | null | undefined,
+): CodingLanguageMeta {
+  if (language && isCodingLanguage(language)) {
+    return CODING_LANGUAGES[language];
+  }
+  return CODING_LANGUAGES.PYTHON;
 }
 
 export function codingFileName(language: string | null | undefined): string {
-  return language === "JAVASCRIPT" ? "script.js" : "script.py";
+  return codingMeta(language).fileName;
+}
+
+export function codingLanguageLabel(
+  language: string | null | undefined,
+): string {
+  return codingMeta(language).label;
 }
 
 export function countBlanks(starter: string): number {

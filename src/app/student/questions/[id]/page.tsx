@@ -19,7 +19,7 @@ type QuestionDetail = Omit<QuestionListItem, "answered"> & {
   mcLocked?: boolean;
   timeSpentMs?: number;
   starterCode?: string | null;
-  codingLanguage?: "PYTHON" | "JAVASCRIPT" | null;
+  codingLanguage?: "PYTHON" | "JAVASCRIPT" | "MATLAB" | null;
   codingCorrect?: boolean | null;
   blankResults?: boolean[] | null;
 };

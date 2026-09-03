@@ -1,5 +1,6 @@
 import { QuestionType, CodingLanguage } from "@/generated/prisma/client";
 import {
+  codingLanguagesList,
   countBlanks,
   isCodingLanguage,
   serializeBlankAnswers,
@@ -115,7 +116,7 @@ export function parseQuestionBody(body: unknown):
     if (!isCodingLanguage(langRaw)) {
       return {
         ok: false,
-        error: "codingLanguage must be PYTHON or JAVASCRIPT.",
+        error: `codingLanguage must be ${codingLanguagesList()}.`,
       };
     }
     codingLanguage = langRaw as CodingLanguage;

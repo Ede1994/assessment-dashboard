@@ -1,3 +1,5 @@
+import type { CodingLanguageName } from "@/lib/coding";
+
 export type CategoryDto = {
   id: string;
   slug: string;
@@ -37,7 +39,7 @@ export type QuestionListItem = {
   type: "FREE_TEXT" | "MULTIPLE_CHOICE" | "CODING";
   codeSnippet: string | null;
   starterCode?: string | null;
-  codingLanguage?: "PYTHON" | "JAVASCRIPT" | null;
+  codingLanguage?: CodingLanguageName | null;
   blankCount?: number;
   sortOrder: number;
   category: CategoryDto;

@@ -610,6 +610,69 @@ print(len(dataset), dataset[1])
     ],
   },
   {
+    slug: "matlab",
+    name: "MATLAB",
+    icon: "fa-calculator",
+    color: "sky",
+    questions: [
+      {
+        title: "Fill in Dice coefficient from confusion counts",
+        prompt:
+          "Complete the Dice coefficient for binary masks. Blank 1 is the intersection (element-wise product sum); blank 2 is `|pred| + |target|`. Then display the rounded score.",
+        roundLabel: "ML-1",
+        tags: "Coding · Metrics",
+        type: QuestionType.CODING,
+        codingLanguage: CodingLanguage.MATLAB,
+        starterCode: `pred = [0.9, 0.1, 0.8, 0.2] >= 0.5;
+target = [1, 0, 1, 0];
+intersection = ____;
+denom = ____;
+dice = (2 * intersection + 1e-6) / (denom + 1e-6);
+disp(round(dice * 1000) / 1000)
+`,
+        blankAnswers: [
+          "sum(pred .* target)",
+          "sum(pred) + sum(target)",
+        ],
+        idealAnswer:
+          "Intersection is the sum of element-wise products (`.*`); the denominator is the sum of both masks. With this example the Dice score is 1.",
+        explanation:
+          "Dice = 2|A∩B| / (|A|+|B|). After thresholding, multiply aligned 0/1 values with `.*` to count overlap. MATLAB uses `.*` for element-wise multiply and `*` for matrix multiply.",
+        codeSolution: `pred = [0.9, 0.1, 0.8, 0.2] >= 0.5;
+target = [1, 0, 1, 0];
+intersection = sum(pred .* target);
+denom = sum(pred) + sum(target);
+dice = (2 * intersection + 1e-6) / (denom + 1e-6);
+disp(round(dice * 1000) / 1000)
+`,
+      },
+      {
+        title: "1-based indexing into a list of scan paths",
+        prompt:
+          "MATLAB indexes from 1. Fill in the number of paths and the index of the second scan. Run should print `3 scan_b.npy`.",
+        roundLabel: "ML-2",
+        tags: "Coding · Indexing",
+        type: QuestionType.CODING,
+        codingLanguage: CodingLanguage.MATLAB,
+        starterCode: `paths = ["scan_a.npy", "scan_b.npy", "scan_c.npy"];
+n = ____(paths);
+second = paths(____);
+fprintf('%d %s\\n', n, second)
+`,
+        blankAnswers: ["numel|length", "2"],
+        idealAnswer:
+          "`numel` counts elements; MATLAB uses 1-based indexing, so the second path is `paths(2)`.",
+        explanation:
+          "Unlike Python, MATLAB sequences start at 1. `numel(x)` is the number of elements; `length` is also accepted for a vector.",
+        codeSolution: `paths = ["scan_a.npy", "scan_b.npy", "scan_c.npy"];
+n = numel(paths);
+second = paths(2);
+fprintf('%d %s\\n', n, second)
+`,
+      },
+    ],
+  },
+  {
     slug: "medical-data",
     name: "Medical Data Processing",
     icon: "fa-database",

@@ -21,6 +21,7 @@ enum QuestionType {
 enum CodingLanguage {
   PYTHON
   JAVASCRIPT
+  MATLAB
 }
 
 model User {

@@ -25,6 +25,8 @@ Last updated: 2026-09-03
 | Auth | bcrypt password hashes + iron-session cookies | Real credential storage; signed sessions |
 | Self-register | Students only (`/register`) | Trainers provisioned by trainers |
 | Answer types | Mix free-text + multiple choice + coding exercises | User choice |
+| Coding execution | Browser workers (JS Function; Python via Pyodide CDN; MATLAB-syntax via RunMat WASM CDN) | No server-side eval; not licensed MATLAB |
+| Coding grades | Compare filled `____` blanks to trainer `blankAnswers` | Never send answer key on student APIs |
 | Solutions visibility | Never on student APIs | Trainer-only via `/api/solutions` and trainer pages |
 | Trainer feedback | Released only when `feedbackReleased` | Students see score/pass/comment after trainer opts in |
 | Task scoping | Per-student `QuestionAssignment` | e.g. CT track without MRI tasks |
@@ -38,8 +40,8 @@ Last updated: 2026-09-03
 
 | User | Pass | Role | Seed behavior |
 |------|------|------|----------------|
-| `student` | `student` | STUDENT | All questions assigned (~66) — “full track” |
-| `student2` | `student2` | STUDENT | CT-focused: MRI-heavy titles/tags filtered out (~61) |
+| `student` | `student` | STUDENT | All questions assigned (~119) — “full track” |
+| `student2` | `student2` | STUDENT | CT-focused: MRI-heavy titles/tags filtered out |
 | `trainer` | `NRAD2026` | TRAINER | Full bank, assignments UI, submissions |
 
 
@@ -54,11 +56,11 @@ Last updated: 2026-09-03
 /login
 /student                    → assigned questions + progress/filters/resume
 /student/questions/[id]     → answer form or coding IDE; next/prev; draft autosave; released feedback
-/trainer                    → overview + MC scoreboard (links to filtered submissions)
+/trainer                    → overview + MC/code scoreboard (links to filtered submissions)
 /trainer/questions          → bank cards/list, clone, preview, import/export, media
 /trainer/categories         → create / rename / delete empty categories
 /trainer/assignments        → pick questions (+ due, exam mode, cohort, copy-from, named templates)
-/trainer/submissions        → student vs ideal + free-text grade/release (+ CSV/PDF)
+/trainer/submissions        → student vs ideal + free-text grade/release (+ coding auto-grade, CSV/PDF)
 /trainer/users              → create / delete / reset password
 
 API: /api/auth/*, /api/questions, /api/questions/[id]/clone, /api/questions/export|import|bulk-delete,
@@ -70,11 +72,12 @@ API: /api/auth/*, /api/questions, /api/questions/[id]/clone, /api/questions/expo
 - Prisma 7 needs `@prisma/adapter-better-sqlite3` + path helper in `src/lib/prisma.ts`.
 - Seed: `prisma/seed.ts` + `prisma/tutorQuestionsEn.ts`; run `npm run db:seed` or `db:reset`.
 - Submission trainer fields: `trainerScore`, `trainerPassed`, `trainerComment`, `feedbackReleased`, `trainerGradedAt`. Student revise clears them (same as AI feedback).
-- Assignment `dueAt` + `examMode` (per-student set). Cohort save via `studentIds[]` on PUT `/api/assignments`.
+- Assignment `dueAt` + `examMode` (per-student set; exam mode also locks **coding** after first submit). Cohort save via `studentIds[]` on PUT `/api/assignments`.
 - Named assignment templates: `AssignmentTemplate` + join rows; trainer CRUD at `/api/assignment-templates`. Built-in CT/MRI/PyTorch presets stay in `src/lib/assignmentPresets.ts` (includes **CT-only**).
 - Time spent: `TimeSpent` rows (not submissions) so viewing a question does not mark it answered. `POST /api/time-spent` `{ questionId, deltaMs }` (1s–120s). Client heartbeat in `useTimeSpent`.
 - Theme: `html.dark` default; `html.light` remaps slate palette. `localStorage.assessment-theme`; toggle in `ThemeToggle`.
 - Trainer uploads land in `public/uploads` (gitignored except `.gitkeep`).
+- **Coding exercises:** `QuestionType.CODING`; student-visible `starterCode` + `codingLanguage` (`PYTHON` / `JAVASCRIPT` / `MATLAB`); trainer-only `Solution.blankAnswers` (JSON string array). Submission stores filled payload in `textAnswer` (`{ v:1, blanks, code }`) and `codingPassed`. Blank token is exactly `____`. Helpers + language registry in `src/lib/coding.ts`. Runners: `public/workers/js-runner.js`, `public/workers/py-runner.js` (Pyodide 0.27.5 from jsDelivr), `public/workers/matlab-runner.js` (module worker, RunMat 0.6.2 from unpkg — jsDelivr 403s the `.wasm`; `telemetryConsent: false`, CPU only). UI: `CodeExercise` + student question page. Exam mode locks coding after first submit (same as MC). Do not leak `blankAnswers` on student GET.
 
 ---
 
@@ -82,7 +85,7 @@ API: /api/auth/*, /api/questions, /api/questions/[id]/clone, /api/questions/expo
 
 1. **Prep dashboard HTML** → original ~16 rounds (PyTorch OOM, DICOM resampling, GroupKFold, U-Net skip mismatch, STAPLE, etc.) translated/adapted + extra CT/MRI items.
 2. **Tutor HTML** `~/Downloads/deep_learning_medizin_tutor.html` → 41 quiz FAQ items; **39** imported in English; **skipped duplicates:** Q1.6 (log_softmax / numerical stability), Q2.4 (anisotropic 3D CNN — overlaps existing anisotropic U-Net topic).
-3. Categories include: `pytorch`, `python`, `medical-data`, `ai-dl`, `dl-basics`, `ct-mri`, `dicom`, `governance`, `architecture`.
+3. Categories include: `pytorch`, `python`, `matlab`, `medical-data`, `ai-dl`, `dl-basics`, `ct-mri`, `dicom`, `governance`, `architecture`.
 4. **Interview Q&A** [amine0110/Medical-Imaging-Interview-Questions-Answers](https://github.com/amine0110/Medical-Imaging-Interview-Questions-Answers) → `prisma/interviewQuestionsEn.ts` (36 items; skipped Q6/Q15/Q17/Q32).
 
 MRI-heavy filter used for `student2` seed and CT-track preset (regex-ish on title/tags/prompt): MRI, MRT, FLAIR, Nyúl, bias field, 2.5D, etc. — see `isMriHeavy()` in `src/lib/assignmentPresets.ts` (imported by seed).
@@ -95,6 +98,7 @@ MRI-heavy filter used for `student2` seed and CT-track preset (regex-ish on titl
 - Dev server: `npm run dev` → http://localhost:3000. Auth gate lives in `src/proxy.ts` (Next 16; formerly `middleware`).
 - Do **not** edit the Cursor plan file under `~/.cursor/plans/` unless the user asks; product truth is the repo + this MEMORY/TODO.
 - Autoreview may block destructive DB resets (`rm` db / force seed); request approval when needed.
+- Python / MATLAB **Run** needs outbound network (Pyodide from jsDelivr; RunMat WASM from unpkg — jsDelivr returns 403 for the `.wasm`). Offline / blocked CDN → Run fails; Submit still grades blanks. MATLAB Run is MATLAB-syntax (RunMat), not MathWorks MATLAB; no toolboxes/plots.
 - Font Awesome: CSS from `@fortawesome/fontawesome-free`; webfonts copied to `public/webfonts` by `scripts/copy-webfonts.mjs`. KaTeX via `MathText` client component.
 - Progress email needs `SMTP_HOST` + `SMTP_FROM` (optional user/pass/port).
 - `/trainer/submissions` uses `useSearchParams` — keep Suspense wrapper around the content component.
@@ -104,12 +108,19 @@ MRI-heavy filter used for `student2` seed and CT-track preset (regex-ish on titl
 
 ## Session log
 
+### 2026-09-03 — MATLAB coding language
+- Same fill-in-the-blank IDE as Python/JS; `CodingLanguage.MATLAB` + `script.m`.
+- In-browser Run via RunMat WASM (unpkg; jsDelivr 403s the wasm), telemetry off, no GPU, in-memory FS. Not licensed MATLAB.
+- Language metadata centralized in `CODING_LANGUAGES` (`src/lib/coding.ts`).
+- Seeded MATLAB category (`matlab`) with Dice (`.*`) and 1-based indexing tasks. After pull: `npx prisma db push` then `npm run db:seed`.
+
 ### 2026-09-03 — In-task coding IDE (fill-in-the-blank)
 - User asked for DataCamp-style tasks where students write small code fragments in an IDE.
 - New `QuestionType.CODING` + `starterCode` / `codingLanguage` / `Solution.blankAnswers` / `Submission.codingPassed`.
 - Trainer editor: type “Coding exercise”, `____` blanks, expected answers (`|` alternatives).
 - Student: three-pane IDE (instructions, scaffolded editor, output). Run Python via Pyodide in a worker, JS in a worker; submit auto-grades blanks.
 - Seeded two Python coding tasks (Dice coefficient, Dataset `__len__`/`__getitem__`). After pull: `npx prisma db push` then `npm run db:seed`.
+- README: dedicated Coding exercises section (author + student + Pyodide limits).
 
 ### 2026-08-13 — Time spent, light theme, CT/MRI tags, more tests
 - User asked to tackle the next TODOs.

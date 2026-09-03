@@ -1,6 +1,6 @@
 # Student Assessment Platform
 
-Prototype assessment dashboard for medical data engineering students. Dark UI inspired by an interview-prep template, with bcrypt-backed authentication, SQLite question bank (editable in-UI), per-student task assignment, and mixed free-text, multiple-choice, and **fill-in-the-blank coding exercises** (Python, PyTorch, CT/MRI, DICOM, AI/DL).
+Prototype assessment dashboard for medical data engineering students. Dark UI inspired by an interview-prep template, with bcrypt-backed authentication, SQLite question bank (editable in-UI), per-student task assignment, and mixed free-text, multiple-choice, and **fill-in-the-blank coding exercises** (Python, JavaScript, MATLAB, PyTorch, CT/MRI, DICOM, AI/DL).
 
 ## Stack
 
@@ -115,8 +115,8 @@ If only app code changed (no Prisma/seed edits), you do **not** need to reseed �
 
 ## Roles
 
-- **Student:** assigned tasks only, submit/update answers, change own password. Solutions never shown.
-- **Trainer:** question bank CRUD, category editor, assign tasks (presets), review submissions (CSV export), provision users (create / delete / reset password).
+- **Student:** assigned tasks only, submit/update answers (including coding blanks), change own password. Solutions and blank answer keys never shown.
+- **Trainer:** question bank CRUD (free text, multiple choice, coding), category editor, assign tasks (presets), review submissions (CSV export), provision users (create / delete / reset password).
 
 ## Question bank editor
 
@@ -128,13 +128,13 @@ Trainers manage the bank in the UI (no seed edit required for day-to-day changes
 - **Import / Export:** JSON bank dump via Export JSON / Import JSON on `/trainer/questions` (categories matched by slug), plus **Export CSV** for a spreadsheet-friendly dump
 - **Media:** upload image/video in the editor (stored under `/public/uploads`, inserted as `![alt](/uploads/…)` markdown; videos render with controls)
 
-Each question stores prompt, optional code snippet, type (free text / MC + choices), and trainer-only ideal answer / explanation / code solution.
+Each question stores prompt, optional read-only code snippet, type (free text / multiple choice / coding), and trainer-only ideal answer / explanation / code solution. Coding tasks also store starter code, language, and expected blanks (see [Coding exercises](#coding-exercises)).
 
 Seed data still bootstraps categories and the initial bank via `npm run db:seed`.
 
 ## Assignments
 
-Trainers open **Assign tasks** (`/trainer/assignments`), pick a student, then select individual questions, whole categories (+/−), built-in presets (**CT-track**, **CT-only**, **MRI-track**, **PyTorch-only**), or **saved named templates**. Save the current selection as a reusable template (overwrite if the name already exists). Optional **due date**, **exam mode** (soft-locks MC after first submit), **copy from another student**, and **cohort** multi-select apply the same set to several students at once. Saving replaces each target student’s assignment set. Students with no assignments temporarily see the full bank; due dates appear on the student dashboard with overdue highlighting.
+Trainers open **Assign tasks** (`/trainer/assignments`), pick a student, then select individual questions, whole categories (+/−), built-in presets (**CT-track**, **CT-only**, **MRI-track**, **PyTorch-only**), or **saved named templates**. Save the current selection as a reusable template (overwrite if the name already exists). Optional **due date**, **exam mode** (soft-locks multiple-choice and coding after first submit), **copy from another student**, and **cohort** multi-select apply the same set to several students at once. Saving replaces each target student’s assignment set. Students with no assignments temporarily see the full bank; due dates appear on the student dashboard with overdue highlighting.
 
 ## Keyboard shortcuts
 
@@ -148,13 +148,71 @@ On the student task list, trainer question bank, and assign-tasks list:
 | Enter | Open (student), preview (bank), or toggle (assignments) |
 | Esc | Close dialogs or blur search |
 
+On a **coding exercise** page:
+
+| Key | Action |
+|-----|--------|
+| Tab / Shift+Tab | Next / previous blank |
+| Ctrl/⌘+Enter | Run the filled-in code |
+
+## Coding exercises
+
+Students complete small fill-in-the-blank tasks in a three-pane IDE (instructions, scaffolded editor, output). They cannot rewrite the surrounding starter code — only the blanks.
+
+### Author a task (trainer)
+
+1. Open `/trainer/questions/new` (or Edit on an existing question).
+2. Set **Type** to **Coding exercise**.
+3. Choose **Python**, **JavaScript**, or **MATLAB**.
+4. Write **starter code** and mark each student-typed fragment with exactly four underscores: `____`.
+5. Fill **one expected answer per blank**, in order. Separate acceptable alternatives with `|` (for example `len|__len__`).
+6. Keep the usual prompt (shown as instructions), plus trainer-only ideal answer and explanation.
+
+Example starter:
+
+```python
+values = [1, 2, 3]
+total = ____(values)
+print(total)
+```
+
+Expected blank: `sum`. Running the filled script should print `6`.
+
+MATLAB example:
+
+```matlab
+values = [1, 2, 3];
+total = ____(values);
+disp(total);
+```
+
+Expected blank: `sum`. Running the filled script should display `6`.
+
+JSON import/export includes `starterCode`, `codingLanguage`, and `solution.blankAnswers`. Clone copies those fields as well.
+
+### Take a task (student)
+
+Open the question from **My tasks**. Fill each highlighted blank, then:
+
+- **Reset** — restore empty blanks
+- **Run code** — execute the filled script in the browser and show stdout/stderr
+- **Submit answer** — auto-grade blanks (Correct / Incorrect; wrong blanks highlight after submit)
+
+Drafts autosave locally until submit, same as free-text.
+
+Python runs via [Pyodide](https://pyodide.org/) loaded from jsDelivr on first **Run** (needs network; first load can take several seconds). JavaScript runs in a Web Worker. MATLAB-syntax runs via [RunMat](https://runmat.com/docs/runtime/wasm) from unpkg on first **Run** (also needs network; first load can take several seconds). This is a browser sandbox, not licensed MathWorks MATLAB: no Image Processing Toolbox, no plots, and no `torch` / CUDA / pip for Python. Use Run for scripts that should actually print; API-style fill-ins can still be graded on the blanks without a successful run.
+
+Grading trims whitespace and treats extra spaces as equivalent (`sum(pred)` matches `sum( pred )`). It does not execute hidden unit tests on submit.
+
+Seeded examples (Python & Programming): **Fill in Dice coefficient from confusion counts** (PY-3) and **Implement Dataset length and indexing** (PY-4). MATLAB: **Fill in Dice coefficient from confusion counts** (ML-1) and **1-based indexing into a list of scan paths** (ML-2).
+
 ## Categories
 
 Trainers manage categories in the UI at `/trainer/categories` (create / rename / recolor / delete when empty). Questions still pick a category in the question editor.
 
 ## Question bank content
 
-Seeded from the medical interview-prep template plus the Deep Learning in Medical Imaging tutor FAQ (English, near-duplicates skipped), plus a 10-question CT fundamentals quiz (`prisma/ctQuestionsEn.ts`, with FBP figure at `public/seed-assets/ct/fbp-reconstructions.png`), plus 3 MRI-only items (`prisma/mriQuestionsEn.ts`), plus 36 free-text interview Q&As from [amine0110/Medical-Imaging-Interview-Questions-Answers](https://github.com/amine0110/Medical-Imaging-Interview-Questions-Answers) (`prisma/interviewQuestionsEn.ts`; skipped overlap on class imbalance, metrics overview, and U-Net). Categories: PyTorch, Python, medical data, AI/DL, DL fundamentals, CT & MRI, DICOM, governance/MDR, U-Net architectures.
+Seeded from the medical interview-prep template plus the Deep Learning in Medical Imaging tutor FAQ (English, near-duplicates skipped), plus a 10-question CT fundamentals quiz (`prisma/ctQuestionsEn.ts`, with FBP figure at `public/seed-assets/ct/fbp-reconstructions.png`), plus 3 MRI-only items (`prisma/mriQuestionsEn.ts`), plus 36 free-text interview Q&As from [amine0110/Medical-Imaging-Interview-Questions-Answers](https://github.com/amine0110/Medical-Imaging-Interview-Questions-Answers) (`prisma/interviewQuestionsEn.ts`; skipped overlap on class imbalance, metrics overview, and U-Net), plus **2 Python coding exercises** and **2 MATLAB coding exercises** in `prisma/seed.ts`. Categories: PyTorch, Python, MATLAB, medical data, AI/DL, DL fundamentals, CT & MRI, DICOM, governance/MDR, U-Net architectures. After seed the bank is about **119** questions.
 
 ## Useful scripts
 
@@ -165,20 +223,20 @@ npm run db:seed      # reset users, questions, and demo assignments
 npm run db:reset     # force-reset DB then seed
 npm run build        # production build
 npm start            # production server (after build); also uses port 3000 by default
-npm test             # API integration tests (auth, assignments, templates, time spent, clone/grade/users/…)
+npm test             # coding unit tests + API integration tests
 ```
 
 ## Grading & scoreboard
 
 - **Multiple choice** is auto-graded from `Choice.isCorrect` when a student saves an answer.
-- **Coding exercises** use a three-pane IDE (instructions, scaffolded editor, output). Trainers mark `____` blanks in starter code; students fill only those fragments, can **Run** Python (browser via Pyodide) or JavaScript, then **Submit**. Blanks are auto-graded (whitespace-insensitive; `|` separates alternative answers).
+- **Coding** is auto-graded from expected blanks on submit (`Submission.codingPassed`). See [Coding exercises](#coding-exercises).
 - Students see Correct / Incorrect on their own MC and coding answers (not the answer key).
-- Trainers can **manually grade free-text** on `/trainer/submissions` (score 0–100, pass/fail, comment) and optionally **release feedback** so the student sees it on the answer page.
-- Trainers see an **MC scoreboard** on `/trainer` (correct/answered %, completion, free-text count, time spent). Click a student to open their filtered submissions.
+- Trainers can **manually grade free-text** on `/trainer/submissions` (score 0–100, pass/fail, comment) and optionally **release feedback** so the student sees it on the answer page. Coding submissions show the filled script and auto-grade; filter the list with **Coding only**.
+- Trainers see an **MC scoreboard** on `/trainer` (correct/answered %, completion, free-text count, **code** correct/answered, time spent). Click a student to open their filtered submissions.
 - Trainers can **Export CSV** or **Export PDF** (browser print) of filtered submissions on `/trainer/submissions`.
 - Question bank **Export CSV** is available next to Export JSON on `/trainer/questions`.
 - Trainers can **email a progress digest** for one student (requires SMTP env; see below).
-- Question bank supports **Clone** (duplicates prompt, solution, and choices; no submissions).
+- Question bank supports **Clone** (duplicates prompt, solution, choices, and coding starter/blanks; no submissions).
 - **Time spent** on a question is tracked while the answer page is visible (paused when the tab is hidden). Students see a live timer; trainers see totals on the scoreboard and each submission. Viewing time does **not** count as an answer.
 - **Light theme** toggle in the header (and on login/register); preference is stored in `localStorage`.
 
@@ -196,7 +254,7 @@ Copy from `.env.example`, set the key, restart the app. If unset, the AI button 
 
 ## Progress emails (SMTP)
 
-Trainers can send a text progress digest from `/trainer/submissions` (select one student → recipient email). Uses nodemailer with:
+Trainers can send a text progress digest from `/trainer/submissions` (select one student → recipient email). The digest includes completion, free-text count, MC score, and coding score. Uses nodemailer with:
 
 | Env | Purpose |
 |-----|---------|
@@ -241,11 +299,12 @@ docker compose up --build
 
 ## Automated tests
 
-`npm test` seeds `prisma/test.db`, starts the production server on port **3010**, and runs Node’s built-in test runner against:
+`npm test` runs `tests/coding.test.ts` (blank parsing/grading, no server), then seeds `prisma/test.db`, starts the production server on port **3010**, and runs `tests/api.test.ts` against:
 
 - auth (invalid login + demo student/trainer)
 - assignment filter (`student2` CT-focused subset)
 - multiple-choice submit (+ unauthenticated 401)
+- coding exercise create + student submit (answer key stays hidden; blanks auto-grade)
 
 Requires a prior or automatic `npm run build` (creates `.next` if missing).
 

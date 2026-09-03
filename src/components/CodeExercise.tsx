@@ -4,6 +4,8 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   BLANK_TOKEN,
   codingFileName,
+  codingLanguageLabel,
+  codingMeta,
   encodeCodingAnswer,
   fillBlanks,
   parseCodingAnswer,
@@ -50,7 +52,7 @@ export function CodeExercise({
   );
   const [output, setOutput] = useState<CodeRunResult | null>(null);
   const [running, setRunning] = useState(false);
-  const [pythonHint, setPythonHint] = useState("");
+  const [runtimeHint, setRuntimeHint] = useState("");
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const runHandle = useRef<{ cancel: () => void } | null>(null);
   const hydratedStarter = useRef<string | null>(null);
@@ -60,7 +62,7 @@ export function CodeExercise({
     hydratedStarter.current = starterCode;
     setBlanks(emptyBlanks(blankCount, parseCodingAnswer(savedAnswer)?.blanks));
     setOutput(null);
-    setPythonHint("");
+    setRuntimeHint("");
   }, [starterCode, blankCount, savedAnswer]);
 
   useEffect(() => {
@@ -98,13 +100,12 @@ export function CodeExercise({
     runHandle.current?.cancel();
     setRunning(true);
     setOutput(null);
-    if (language !== "JAVASCRIPT") {
-      setPythonHint("Loading Python runtime (first run may take a few seconds)…");
-    }
+    const hint = codingMeta(language).loadingHint;
+    if (hint) setRuntimeHint(hint);
     const handle = runStudentCode(language, code);
     runHandle.current = handle;
     const result = await handle.promise;
-    setPythonHint("");
+    setRuntimeHint("");
     setRunning(false);
     setOutput(result);
   }
@@ -130,7 +131,7 @@ export function CodeExercise({
             {fileName}
           </span>
           <span className="text-[10px] uppercase tracking-wide text-slate-500 border border-slate-800 rounded px-1.5 py-0.5">
-            {language === "JAVASCRIPT" ? "JavaScript" : "Python"}
+            {codingLanguageLabel(language)}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -226,8 +227,8 @@ export function CodeExercise({
           <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
             Output
           </span>
-          {pythonHint ? (
-            <span className="text-[11px] text-amber-300">{pythonHint}</span>
+          {runtimeHint ? (
+            <span className="text-[11px] text-amber-300">{runtimeHint}</span>
           ) : null}
         </div>
         <pre className="flex-1 overflow-auto px-3 py-2 text-xs text-slate-300 min-h-20">

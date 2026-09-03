@@ -7,12 +7,18 @@ import { AppHeader } from "@/components/AppHeader";
 import { TrainerNav } from "@/components/TrainerNav";
 import { useToast } from "@/components/Toast";
 import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
-import { countBlanks } from "@/lib/coding";
+import {
+  CODING_LANGUAGE_NAMES,
+  codingMeta,
+  countBlanks,
+  isCodingLanguage,
+  type CodingLanguageName,
+} from "@/lib/coding";
 import type { CategoryDto } from "@/lib/types";
 
 type ChoiceDraft = { label: string; isCorrect: boolean };
 type QuestionKind = "FREE_TEXT" | "MULTIPLE_CHOICE" | "CODING";
-type CodingLang = "PYTHON" | "JAVASCRIPT";
+type CodingLang = CodingLanguageName;
 
 type QuestionEditorProps = {
   mode: "create" | "edit";
@@ -198,7 +204,9 @@ export function QuestionEditor({ mode, questionId }: QuestionEditorProps) {
           const nextType = (q.type ?? "FREE_TEXT") as QuestionKind;
           const nextCode = q.codeSnippet ?? "";
           const nextStarter = q.starterCode ?? "";
-          const nextLang = (q.codingLanguage ?? "PYTHON") as CodingLang;
+          const nextLang = isCodingLanguage(String(q.codingLanguage ?? ""))
+            ? (q.codingLanguage as CodingLang)
+            : "PYTHON";
           const nextBlanks: string[] = Array.isArray(q.solution?.blankAnswers)
             ? q.solution.blankAnswers.map((item: unknown) => String(item ?? ""))
             : [];
@@ -379,12 +387,9 @@ export function QuestionEditor({ mode, questionId }: QuestionEditorProps) {
                   const next = e.target.value as QuestionKind;
                   setType(next);
                   if (next === "CODING" && !starterCode.trim()) {
-                    setStarterCode(
-                      codingLanguage === "JAVASCRIPT"
-                        ? `const values = [1, 2, 3];\nconst total = ____(values);\nconsole.log(total);\n`
-                        : `values = [1, 2, 3]\ntotal = ____(values)\nprint(total)\n`,
-                    );
-                    setBlankAnswers(["sum"]);
+                    const meta = codingMeta(codingLanguage);
+                    setStarterCode(meta.defaultStarter);
+                    setBlankAnswers([...meta.defaultBlankAnswers]);
                   }
                 }}
                 className={inputClass}
@@ -471,8 +476,11 @@ export function QuestionEditor({ mode, questionId }: QuestionEditorProps) {
                     }
                     className={inputClass}
                   >
-                    <option value="PYTHON">Python</option>
-                    <option value="JAVASCRIPT">JavaScript</option>
+                    {CODING_LANGUAGE_NAMES.map((lang) => (
+                      <option key={lang} value={lang}>
+                        {codingMeta(lang).label}
+                      </option>
+                    ))}
                   </select>
                 </Field>
               </div>
