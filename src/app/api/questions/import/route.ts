@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { QuestionType } from "@/generated/prisma/client";
+import { QuestionType, CodingLanguage } from "@/generated/prisma/client";
+import {
+  countBlanks,
+  isCodingLanguage,
+  serializeBlankAnswers,
+} from "@/lib/coding";
 
 type ImportQuestion = {
   categorySlug?: string;
@@ -11,12 +16,15 @@ type ImportQuestion = {
   tags?: string;
   type?: string;
   codeSnippet?: string | null;
+  starterCode?: string | null;
+  codingLanguage?: string | null;
   sortOrder?: number;
   choices?: Array<{ label?: string; isCorrect?: boolean; sortOrder?: number }>;
   solution?: {
     idealAnswer?: string;
     explanation?: string;
     codeSolution?: string | null;
+    blankAnswers?: string[] | string | null;
   } | null;
 };
 
@@ -71,10 +79,13 @@ export async function POST(request: Request) {
       errors.push(`#${i + 1}: missing title/prompt/solution fields`);
       continue;
     }
+    const typeRaw = String(row.type ?? "").toUpperCase();
     const type =
-      String(row.type ?? "").toUpperCase() === "MULTIPLE_CHOICE"
+      typeRaw === "MULTIPLE_CHOICE"
         ? QuestionType.MULTIPLE_CHOICE
-        : QuestionType.FREE_TEXT;
+        : typeRaw === "CODING"
+          ? QuestionType.CODING
+          : QuestionType.FREE_TEXT;
 
     const choices =
       type === QuestionType.MULTIPLE_CHOICE
@@ -94,6 +105,33 @@ export async function POST(request: Request) {
       }
     }
 
+    let starterCode: string | null = null;
+    let codingLanguage: CodingLanguage | null = null;
+    let blankAnswers: string | null = null;
+    if (type === QuestionType.CODING) {
+      starterCode = String(row.starterCode ?? "");
+      const blankCount = countBlanks(starterCode);
+      const langRaw = String(row.codingLanguage ?? "PYTHON").toUpperCase();
+      const rawBlanks = Array.isArray(row.solution?.blankAnswers)
+        ? row.solution.blankAnswers.map((item) => String(item ?? "").trim())
+        : typeof row.solution?.blankAnswers === "string"
+          ? String(row.solution.blankAnswers)
+              .split("\n")
+              .map((line) => line.trim())
+              .filter(Boolean)
+          : [];
+      if (!starterCode.trim() || blankCount < 1 || !isCodingLanguage(langRaw)) {
+        errors.push(`#${i + 1}: coding questions need starterCode with ____ blanks`);
+        continue;
+      }
+      if (rawBlanks.length !== blankCount || rawBlanks.some((item) => !item)) {
+        errors.push(`#${i + 1}: coding questions need ${blankCount} blank answers`);
+        continue;
+      }
+      codingLanguage = langRaw as CodingLanguage;
+      blankAnswers = serializeBlankAnswers(rawBlanks);
+    }
+
     try {
       await prisma.question.create({
         data: {
@@ -104,6 +142,8 @@ export async function POST(request: Request) {
           tags: String(row.tags ?? "Imported").trim() || "Imported",
           type,
           codeSnippet: row.codeSnippet ? String(row.codeSnippet) : null,
+          starterCode,
+          codingLanguage,
           sortOrder:
             typeof row.sortOrder === "number" && Number.isFinite(row.sortOrder)
               ? row.sortOrder
@@ -115,6 +155,7 @@ export async function POST(request: Request) {
               codeSolution: row.solution?.codeSolution
                 ? String(row.solution.codeSolution)
                 : null,
+              blankAnswers,
             },
           },
           choices:

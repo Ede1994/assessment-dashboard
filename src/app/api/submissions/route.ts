@@ -5,6 +5,12 @@ import { QuestionType } from "@/generated/prisma/client";
 import { studentCanAccessQuestion, studentHasExamMode } from "@/lib/assignments";
 import { getAssignedQuestionIds } from "@/lib/assignments";
 import { computeProgressScore } from "@/lib/grading";
+import {
+  fillBlanks,
+  gradeBlanks,
+  parseBlankAnswers,
+  parseCodingAnswer,
+} from "@/lib/coding";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -37,7 +43,7 @@ export async function POST(request: Request) {
 
   const question = await prisma.question.findUnique({
     where: { id: questionId },
-    include: { choices: true },
+    include: { choices: true, solution: true },
   });
 
   if (!question) {
@@ -45,6 +51,10 @@ export async function POST(request: Request) {
   }
 
   let isCorrect: boolean | null = null;
+  let codingPassed: boolean | null = null;
+  let codingGrade: ReturnType<typeof gradeBlanks> | null = null;
+  let storedText: string | null = null;
+  let storedChoice: string | null = null;
 
   if (question.type === QuestionType.FREE_TEXT) {
     if (!textAnswer || !textAnswer.trim()) {
@@ -53,6 +63,39 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+    storedText = textAnswer.trim();
+  } else if (question.type === QuestionType.CODING) {
+    const parsed = parseCodingAnswer(textAnswer);
+    const expected = parseBlankAnswers(question.solution?.blankAnswers);
+    const actual = parsed?.blanks ?? [];
+    if (expected.length === 0) {
+      return NextResponse.json(
+        { error: "This coding exercise is missing an answer key." },
+        { status: 500 },
+      );
+    }
+    if (actual.length !== expected.length) {
+      return NextResponse.json(
+        { error: `Fill all ${expected.length} blanks before submitting.` },
+        { status: 400 },
+      );
+    }
+    if (actual.some((blank) => !blank.trim())) {
+      return NextResponse.json(
+        { error: "Fill every blank before submitting." },
+        { status: 400 },
+      );
+    }
+    codingGrade = gradeBlanks(expected, actual);
+    codingPassed = codingGrade.isCorrect;
+    isCorrect = codingGrade.isCorrect;
+    const filled =
+      parsed?.code?.trim() || fillBlanks(question.starterCode ?? "", actual);
+    storedText = JSON.stringify({
+      v: 1,
+      blanks: actual,
+      code: filled,
+    });
   } else {
     if (!selectedChoiceId) {
       return NextResponse.json(
@@ -65,8 +108,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid choice." }, { status: 400 });
     }
     isCorrect = choice.isCorrect;
+    storedChoice = selectedChoiceId;
+  }
 
-    // Exam mode: soft-lock MC after the first submit.
+  const examLockable =
+    question.type === QuestionType.MULTIPLE_CHOICE ||
+    question.type === QuestionType.CODING;
+  if (examLockable) {
     const examMode = await studentHasExamMode(user.id, questionId);
     if (examMode) {
       const existing = await prisma.submission.findUnique({
@@ -77,7 +125,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             error:
-              "Exam mode is on — multiple-choice answers cannot be changed after the first submit.",
+              "Exam mode is on — this answer cannot be changed after the first submit.",
           },
           { status: 403 },
         );
@@ -92,11 +140,9 @@ export async function POST(request: Request) {
     create: {
       userId: user.id,
       questionId,
-      textAnswer:
-        question.type === QuestionType.FREE_TEXT ? textAnswer!.trim() : null,
-      selectedChoiceId:
-        question.type === QuestionType.MULTIPLE_CHOICE ? selectedChoiceId : null,
-      // Clear any prior review when the student revises.
+      textAnswer: storedText,
+      selectedChoiceId: storedChoice,
+      codingPassed,
       aiFeedback: null,
       aiReviewedAt: null,
       trainerScore: null,
@@ -106,10 +152,9 @@ export async function POST(request: Request) {
       trainerGradedAt: null,
     },
     update: {
-      textAnswer:
-        question.type === QuestionType.FREE_TEXT ? textAnswer!.trim() : null,
-      selectedChoiceId:
-        question.type === QuestionType.MULTIPLE_CHOICE ? selectedChoiceId : null,
+      textAnswer: storedText,
+      selectedChoiceId: storedChoice,
+      codingPassed,
       aiFeedback: null,
       aiReviewedAt: null,
       trainerScore: null,
@@ -123,11 +168,20 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ok: true,
     submission,
-    // Auto-grade MC only; never reveal which other choices were correct.
+    examMode: examLockable
+      ? await studentHasExamMode(user.id, questionId)
+      : false,
     grading:
       question.type === QuestionType.MULTIPLE_CHOICE
         ? { isCorrect: Boolean(isCorrect) }
-        : null,
+        : question.type === QuestionType.CODING && codingGrade
+          ? {
+              isCorrect: codingGrade.isCorrect,
+              correctCount: codingGrade.correctCount,
+              total: codingGrade.total,
+              blankResults: codingGrade.blankResults,
+            }
+          : null,
   });
 }
 
@@ -161,6 +215,10 @@ export async function GET() {
         mcCorrect:
           s.question.type === QuestionType.MULTIPLE_CHOICE
             ? Boolean(s.selectedChoice?.isCorrect)
+            : null,
+        codingCorrect:
+          s.question.type === QuestionType.CODING
+            ? Boolean(s.codingPassed)
             : null,
         selectedChoice: s.selectedChoice
           ? {

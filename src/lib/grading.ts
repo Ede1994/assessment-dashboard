@@ -7,14 +7,22 @@ export type McScore = {
   mcScorePct: number | null;
 };
 
-export type ProgressScore = McScore & {
-  answered: number;
-  total: number;
-  freeTextAnswered: number;
+export type CodingScore = {
+  codingAnswered: number;
+  codingCorrect: number;
+  codingScorePct: number | null;
 };
+
+export type ProgressScore = McScore &
+  CodingScore & {
+    answered: number;
+    total: number;
+    freeTextAnswered: number;
+  };
 
 type GradableSubmission = {
   selectedChoiceId: string | null;
+  codingPassed?: boolean | null;
   question: {
     type: QuestionType | string;
   };
@@ -25,7 +33,11 @@ function isMultipleChoice(type: string): boolean {
   return type === "MULTIPLE_CHOICE";
 }
 
-/** Aggregate MC auto-grade + completion counts for a student's submissions. */
+function isCoding(type: string): boolean {
+  return type === "CODING";
+}
+
+/** Aggregate auto-grade + completion counts for a student's submissions. */
 export function computeProgressScore(
   totalQuestions: number,
   submissions: GradableSubmission[],
@@ -33,12 +45,17 @@ export function computeProgressScore(
   let mcAnswered = 0;
   let mcCorrect = 0;
   let freeTextAnswered = 0;
+  let codingAnswered = 0;
+  let codingCorrect = 0;
 
   for (const s of submissions) {
     if (isMultipleChoice(s.question.type)) {
       if (!s.selectedChoiceId) continue;
       mcAnswered += 1;
       if (s.selectedChoice?.isCorrect) mcCorrect += 1;
+    } else if (isCoding(s.question.type)) {
+      codingAnswered += 1;
+      if (s.codingPassed) codingCorrect += 1;
     } else {
       freeTextAnswered += 1;
     }
@@ -52,5 +69,11 @@ export function computeProgressScore(
     mcCorrect,
     mcScorePct:
       mcAnswered === 0 ? null : Math.round((mcCorrect / mcAnswered) * 100),
+    codingAnswered,
+    codingCorrect,
+    codingScorePct:
+      codingAnswered === 0
+        ? null
+        : Math.round((codingCorrect / codingAnswered) * 100),
   };
 }

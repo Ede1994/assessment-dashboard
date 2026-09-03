@@ -40,6 +40,8 @@ export async function POST(_request: Request, { params }: Params) {
       tags: source.tags,
       type: source.type,
       codeSnippet: source.codeSnippet,
+      starterCode: source.starterCode,
+      codingLanguage: source.codingLanguage,
       sortOrder,
       solution: source.solution
         ? {
@@ -47,6 +49,7 @@ export async function POST(_request: Request, { params }: Params) {
               idealAnswer: source.solution.idealAnswer,
               explanation: source.solution.explanation,
               codeSolution: source.solution.codeSolution,
+              blankAnswers: source.solution.blankAnswers,
             },
           }
         : undefined,

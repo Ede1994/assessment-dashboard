@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-import { PrismaClient, QuestionType, Role } from "../src/generated/prisma/client";
+import { PrismaClient, QuestionType, Role, CodingLanguage } from "../src/generated/prisma/client";
 import path from "path";
 import { tutorQuestionsEn } from "./tutorQuestionsEn";
 import { ctQuestionsEn } from "./ctQuestionsEn";
@@ -8,6 +8,7 @@ import { mriQuestionsEn } from "./mriQuestionsEn";
 import { interviewQuestionsEn } from "./interviewQuestionsEn";
 import { hashPassword } from "../src/lib/password";
 import { isMriHeavy } from "../src/lib/assignmentPresets";
+import { serializeBlankAnswers } from "../src/lib/coding";
 
 const dbUrl = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
 const relative = dbUrl.replace(/^file:/, "");
@@ -26,6 +27,9 @@ type SeedQuestion = {
   tags: string;
   type: QuestionType;
   codeSnippet?: string;
+  starterCode?: string;
+  codingLanguage?: CodingLanguage;
+  blankAnswers?: string[];
   choices?: SeedChoice[];
   idealAnswer: string;
   explanation: string;
@@ -535,6 +539,74 @@ const categories: SeedCategory[] = [
         explanation:
           "Mutable default arguments are a classic Python footgun in servers and notebooks alike.",
       },
+      {
+        title: "Fill in Dice coefficient from confusion counts",
+        prompt:
+          "Complete the Dice coefficient for binary masks represented as 0/1 lists. Blank 1 is the intersection; blank 2 is `|pred| + |target|`. Then print the rounded score.",
+        roundLabel: "PY-3",
+        tags: "Coding · Metrics",
+        type: QuestionType.CODING,
+        codingLanguage: CodingLanguage.PYTHON,
+        starterCode: `def dice_coefficient(pred, target, eps=1e-6):
+    pred = [1 if x >= 0.5 else 0 for x in pred]
+    intersection = ____
+    denom = ____
+    return (2 * intersection + eps) / (denom + eps)
+
+print(round(dice_coefficient([0.9, 0.1, 0.8, 0.2], [1, 0, 1, 0]), 3))
+`,
+        blankAnswers: [
+          "sum(p * t for p, t in zip(pred, target))",
+          "sum(pred) + sum(target)",
+        ],
+        idealAnswer:
+          "Intersection is the sum of element-wise products; the denominator is the sum of both masks. With this example the Dice score is 1.0.",
+        explanation:
+          "Dice = 2|A∩B| / (|A|+|B|). After thresholding, multiply aligned 0/1 values to count overlap.",
+        codeSolution: `def dice_coefficient(pred, target, eps=1e-6):
+    pred = [1 if x >= 0.5 else 0 for x in pred]
+    intersection = sum(p * t for p, t in zip(pred, target))
+    denom = sum(pred) + sum(target)
+    return (2 * intersection + eps) / (denom + eps)
+`,
+      },
+      {
+        title: "Implement Dataset length and indexing",
+        prompt:
+          "A student-facing dataset should support `len(dataset)` and `dataset[i]`. Fill in the two special methods. Run the snippet; it should print `3 scan_b.npy`.",
+        roundLabel: "PY-4",
+        tags: "Coding · Datasets",
+        type: QuestionType.CODING,
+        codingLanguage: CodingLanguage.PYTHON,
+        starterCode: `class PatchDataset:
+    def __init__(self, paths):
+        self.paths = paths
+
+    def ____(self):
+        return len(self.paths)
+
+    def ____(self, idx):
+        return self.paths[idx]
+
+dataset = PatchDataset(["scan_a.npy", "scan_b.npy", "scan_c.npy"])
+print(len(dataset), dataset[1])
+`,
+        blankAnswers: ["__len__", "__getitem__"],
+        idealAnswer:
+          "`__len__` implements `len(dataset)`; `__getitem__` implements index access.",
+        explanation:
+          "Python’s data-model methods make a class look like a sequence. PyTorch Dataset uses the same pair.",
+        codeSolution: `class PatchDataset:
+    def __init__(self, paths):
+        self.paths = paths
+
+    def __len__(self):
+        return len(self.paths)
+
+    def __getitem__(self, idx):
+        return self.paths[idx]
+`,
+      },
     ],
   },
   {
@@ -739,12 +811,17 @@ async function main() {
           tags: q.tags,
           type: q.type,
           codeSnippet: q.codeSnippet ?? null,
+          starterCode: q.starterCode ?? null,
+          codingLanguage: q.codingLanguage ?? null,
           sortOrder,
           solution: {
             create: {
               idealAnswer: q.idealAnswer,
               explanation: q.explanation,
               codeSolution: q.codeSolution ?? null,
+              blankAnswers: q.blankAnswers
+                ? serializeBlankAnswers(q.blankAnswers)
+                : null,
             },
           },
           choices: q.choices

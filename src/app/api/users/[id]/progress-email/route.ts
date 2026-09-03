@@ -17,12 +17,19 @@ function buildProgressText(opts: {
   mcAnswered: number;
   mcCorrect: number;
   mcScorePct: number | null;
+  codingAnswered: number;
+  codingCorrect: number;
+  codingScorePct: number | null;
   lines: string[];
 }): string {
   const mcLine =
     opts.mcAnswered === 0
       ? "MC score: — (no MC answers yet)"
       : `MC score: ${opts.mcCorrect}/${opts.mcAnswered} (${opts.mcScorePct}%)`;
+  const codingLine =
+    opts.codingAnswered === 0
+      ? "Coding score: — (no coding answers yet)"
+      : `Coding score: ${opts.codingCorrect}/${opts.codingAnswered} (${opts.codingScorePct}%)`;
 
   return [
     `Student progress — ${opts.studentName} (@${opts.username})`,
@@ -31,6 +38,7 @@ function buildProgressText(opts: {
     `Completion: ${opts.answered}/${opts.total} assigned tasks answered`,
     `Free-text answers: ${opts.freeTextAnswered}`,
     mcLine,
+    codingLine,
     "",
     "Recent submissions:",
     ...(opts.lines.length ? opts.lines : ["  (none yet)"]),
@@ -103,6 +111,10 @@ export async function POST(request: Request, { params }: Params) {
       const mark = s.selectedChoice?.isCorrect ? "correct" : "incorrect";
       return `  • [${s.question.category.name}] ${s.question.title} — MC ${mark} (${when})`;
     }
+    if (s.question.type === QuestionType.CODING) {
+      const mark = s.codingPassed ? "correct" : "incorrect";
+      return `  • [${s.question.category.name}] ${s.question.title} — coding ${mark} (${when})`;
+    }
     const preview = (s.textAnswer ?? "").replace(/\s+/g, " ").slice(0, 80);
     return `  • [${s.question.category.name}] ${s.question.title} — free text: ${preview || "—"}${
       (s.textAnswer ?? "").length > 80 ? "…" : ""
@@ -118,6 +130,9 @@ export async function POST(request: Request, { params }: Params) {
     mcAnswered: score.mcAnswered,
     mcCorrect: score.mcCorrect,
     mcScorePct: score.mcScorePct,
+    codingAnswered: score.codingAnswered,
+    codingCorrect: score.codingCorrect,
+    codingScorePct: score.codingScorePct,
     lines,
   });
 

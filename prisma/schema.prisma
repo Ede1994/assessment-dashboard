@@ -15,6 +15,12 @@ enum Role {
 enum QuestionType {
   FREE_TEXT
   MULTIPLE_CHOICE
+  CODING
+}
+
+enum CodingLanguage {
+  PYTHON
+  JAVASCRIPT
 }
 
 model User {
@@ -47,9 +53,11 @@ model Question {
   prompt      String
   roundLabel  String
   tags        String
-  type        QuestionType
-  codeSnippet String?
-  sortOrder   Int
+  type            QuestionType
+  codeSnippet     String?
+  starterCode     String?
+  codingLanguage  CodingLanguage?
+  sortOrder       Int
   choices     Choice[]
   solution    Solution?
   submissions Submission[]
@@ -75,6 +83,7 @@ model Solution {
   idealAnswer  String
   explanation  String
   codeSolution String?
+  blankAnswers String?
 }
 
 model Submission {
@@ -93,6 +102,7 @@ model Submission {
   trainerComment   String?
   feedbackReleased Boolean   @default(false)
   trainerGradedAt  DateTime?
+  codingPassed     Boolean?
   submittedAt      DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 

@@ -7,9 +7,12 @@ import { AppHeader } from "@/components/AppHeader";
 import { TrainerNav } from "@/components/TrainerNav";
 import { useToast } from "@/components/Toast";
 import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
+import { countBlanks } from "@/lib/coding";
 import type { CategoryDto } from "@/lib/types";
 
 type ChoiceDraft = { label: string; isCorrect: boolean };
+type QuestionKind = "FREE_TEXT" | "MULTIPLE_CHOICE" | "CODING";
+type CodingLang = "PYTHON" | "JAVASCRIPT";
 
 type QuestionEditorProps = {
   mode: "create" | "edit";
@@ -89,6 +92,9 @@ function snapshot(data: {
   tags: string;
   type: string;
   codeSnippet: string;
+  starterCode: string;
+  codingLanguage: string;
+  blankAnswers: string[];
   sortOrder: string;
   idealAnswer: string;
   explanation: string;
@@ -107,8 +113,11 @@ export function QuestionEditor({ mode, questionId }: QuestionEditorProps) {
   const [prompt, setPrompt] = useState("");
   const [roundLabel, setRoundLabel] = useState("Custom");
   const [tags, setTags] = useState("");
-  const [type, setType] = useState<"FREE_TEXT" | "MULTIPLE_CHOICE">("FREE_TEXT");
+  const [type, setType] = useState<QuestionKind>("FREE_TEXT");
   const [codeSnippet, setCodeSnippet] = useState("");
+  const [starterCode, setStarterCode] = useState("");
+  const [codingLanguage, setCodingLanguage] = useState<CodingLang>("PYTHON");
+  const [blankAnswers, setBlankAnswers] = useState<string[]>([]);
   const [sortOrder, setSortOrder] = useState("");
   const [idealAnswer, setIdealAnswer] = useState("");
   const [explanation, setExplanation] = useState("");
@@ -130,6 +139,9 @@ export function QuestionEditor({ mode, questionId }: QuestionEditorProps) {
     tags,
     type,
     codeSnippet,
+    starterCode,
+    codingLanguage,
+    blankAnswers,
     sortOrder,
     idealAnswer,
     explanation,
@@ -161,6 +173,9 @@ export function QuestionEditor({ mode, questionId }: QuestionEditorProps) {
               tags: "",
               type: "FREE_TEXT",
               codeSnippet: "",
+              starterCode: "",
+              codingLanguage: "PYTHON",
+              blankAnswers: [],
               sortOrder: "",
               idealAnswer: "",
               explanation: "",
@@ -180,10 +195,13 @@ export function QuestionEditor({ mode, questionId }: QuestionEditorProps) {
           const nextPrompt = q.prompt ?? "";
           const nextRound = q.roundLabel ?? "Custom";
           const nextTags = q.tags ?? "";
-          const nextType = (q.type ?? "FREE_TEXT") as
-            | "FREE_TEXT"
-            | "MULTIPLE_CHOICE";
+          const nextType = (q.type ?? "FREE_TEXT") as QuestionKind;
           const nextCode = q.codeSnippet ?? "";
+          const nextStarter = q.starterCode ?? "";
+          const nextLang = (q.codingLanguage ?? "PYTHON") as CodingLang;
+          const nextBlanks: string[] = Array.isArray(q.solution?.blankAnswers)
+            ? q.solution.blankAnswers.map((item: unknown) => String(item ?? ""))
+            : [];
           const nextSort = String(q.sortOrder ?? "");
           const nextIdeal = q.solution?.idealAnswer ?? "";
           const nextExpl = q.solution?.explanation ?? "";
@@ -201,6 +219,9 @@ export function QuestionEditor({ mode, questionId }: QuestionEditorProps) {
           setTags(nextTags);
           setType(nextType);
           setCodeSnippet(nextCode);
+          setStarterCode(nextStarter);
+          setCodingLanguage(nextLang);
+          setBlankAnswers(nextBlanks);
           setSortOrder(nextSort);
           setIdealAnswer(nextIdeal);
           setExplanation(nextExpl);
@@ -215,6 +236,9 @@ export function QuestionEditor({ mode, questionId }: QuestionEditorProps) {
               tags: nextTags,
               type: nextType,
               codeSnippet: nextCode,
+              starterCode: nextStarter,
+              codingLanguage: nextLang,
+              blankAnswers: nextBlanks,
               sortOrder: nextSort,
               idealAnswer: nextIdeal,
               explanation: nextExpl,
@@ -246,6 +270,9 @@ export function QuestionEditor({ mode, questionId }: QuestionEditorProps) {
       tags,
       type,
       codeSnippet: codeSnippet || null,
+      starterCode: type === "CODING" ? starterCode : null,
+      codingLanguage: type === "CODING" ? codingLanguage : null,
+      blankAnswers: type === "CODING" ? blankAnswers : undefined,
       sortOrder: sortOrder === "" ? undefined : Number(sortOrder),
       idealAnswer,
       explanation,
@@ -348,13 +375,23 @@ export function QuestionEditor({ mode, questionId }: QuestionEditorProps) {
             <Field label="Type">
               <select
                 value={type}
-                onChange={(e) =>
-                  setType(e.target.value as "FREE_TEXT" | "MULTIPLE_CHOICE")
-                }
+                onChange={(e) => {
+                  const next = e.target.value as QuestionKind;
+                  setType(next);
+                  if (next === "CODING" && !starterCode.trim()) {
+                    setStarterCode(
+                      codingLanguage === "JAVASCRIPT"
+                        ? `const values = [1, 2, 3];\nconst total = ____(values);\nconsole.log(total);\n`
+                        : `values = [1, 2, 3]\ntotal = ____(values)\nprint(total)\n`,
+                    );
+                    setBlankAnswers(["sum"]);
+                  }
+                }}
                 className={inputClass}
               >
                 <option value="FREE_TEXT">Free text</option>
                 <option value="MULTIPLE_CHOICE">Multiple choice</option>
+                <option value="CODING">Coding exercise</option>
               </select>
             </Field>
           </div>
@@ -420,13 +457,91 @@ export function QuestionEditor({ mode, questionId }: QuestionEditorProps) {
             for students.
           </p>
 
-          <Field label="Code snippet shown to student (optional)">
-            <textarea
-              value={codeSnippet}
-              onChange={(e) => setCodeSnippet(e.target.value)}
-              className={`${inputClass} font-mono text-xs min-h-24`}
-            />
-          </Field>
+          {type === "CODING" ? (
+            <div className="space-y-3 border border-sky-500/20 rounded-xl p-4 bg-sky-500/5">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-xs font-semibold text-sky-300">
+                  Coding exercise
+                </h3>
+                <Field label="Language">
+                  <select
+                    value={codingLanguage}
+                    onChange={(e) =>
+                      setCodingLanguage(e.target.value as CodingLang)
+                    }
+                    className={inputClass}
+                  >
+                    <option value="PYTHON">Python</option>
+                    <option value="JAVASCRIPT">JavaScript</option>
+                  </select>
+                </Field>
+              </div>
+              <Field label="Starter code — use ____ for each blank the student must fill">
+                <textarea
+                  value={starterCode}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setStarterCode(next);
+                    const n = countBlanks(next);
+                    setBlankAnswers((prev) => {
+                      if (prev.length === n) return prev;
+                      if (prev.length < n) {
+                        return [...prev, ...Array(n - prev.length).fill("")];
+                      }
+                      return prev.slice(0, n);
+                    });
+                  }}
+                  className={`${inputClass} font-mono text-xs min-h-40`}
+                  required
+                />
+              </Field>
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-slate-400">
+                  Expected answers ({countBlanks(starterCode)} blank
+                  {countBlanks(starterCode) === 1 ? "" : "s"})
+                </p>
+                {blankAnswers.length === 0 ? (
+                  <p className="text-[11px] text-amber-300">
+                    Add at least one ____ in the starter code.
+                  </p>
+                ) : (
+                  blankAnswers.map((answer, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="text-[11px] text-slate-500 w-16 shrink-0">
+                        Blank {i + 1}
+                      </span>
+                      <input
+                        value={answer}
+                        onChange={(e) =>
+                          setBlankAnswers((prev) =>
+                            prev.map((row, idx) =>
+                              idx === i ? e.target.value : row,
+                            ),
+                          )
+                        }
+                        className={`${inputClass} font-mono text-xs`}
+                        placeholder="Expected code for this blank"
+                        required
+                      />
+                    </div>
+                  ))
+                )}
+                <p className="text-[11px] text-slate-500">
+                  Separate acceptable alternatives with{" "}
+                  <code className="text-slate-400">|</code>, e.g.{" "}
+                  <code className="text-slate-400">len|__len__</code>.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <Field label="Code snippet shown to student (optional)">
+              <textarea
+                value={codeSnippet}
+                onChange={(e) => setCodeSnippet(e.target.value)}
+                className={`${inputClass} font-mono text-xs min-h-24`}
+              />
+            </Field>
+          )}
 
           {type === "MULTIPLE_CHOICE" ? (
             <div className="space-y-2 border border-slate-800 rounded-xl p-4">

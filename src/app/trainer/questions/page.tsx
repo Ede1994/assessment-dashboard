@@ -12,6 +12,7 @@ import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { listItemClass, useListKeyboard } from "@/hooks/useListKeyboard";
 import { categoryColors } from "@/lib/colors";
 import type { CategoryDto, ChoiceDto, SolutionDto } from "@/lib/types";
+import { questionTypeLabel } from "@/lib/questionTypes";
 
 type TrainerQuestion = {
   id: string;
@@ -19,8 +20,9 @@ type TrainerQuestion = {
   prompt: string;
   roundLabel: string;
   tags: string;
-  type: "FREE_TEXT" | "MULTIPLE_CHOICE";
+  type: "FREE_TEXT" | "MULTIPLE_CHOICE" | "CODING";
   codeSnippet: string | null;
+  starterCode?: string | null;
   category: CategoryDto;
   choices: ChoiceDto[];
   solution: SolutionDto | null;
@@ -84,9 +86,7 @@ function QuestionPreviewModal({
                 {question.tags}
               </span>
               <span className="text-[10px] text-slate-500 uppercase tracking-wide">
-                {question.type === "MULTIPLE_CHOICE"
-                  ? "Multiple choice"
-                  : "Free text"}
+                {questionTypeLabel(question.type)}
               </span>
             </div>
             <h2 id={titleId} className="text-lg font-bold text-slate-100">
@@ -108,7 +108,11 @@ function QuestionPreviewModal({
           <MathText text={question.prompt} />
         </div>
 
-        {question.codeSnippet ? (
+        {question.starterCode ? (
+          <pre className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs text-slate-300 overflow-x-auto">
+            <code>{question.starterCode}</code>
+          </pre>
+        ) : question.codeSnippet ? (
           <pre className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs text-slate-300 overflow-x-auto">
             <code>{question.codeSnippet}</code>
           </pre>
@@ -452,7 +456,11 @@ export default function TrainerQuestionsPage() {
           <MathText text={q.prompt} />
         </div>
 
-        {q.codeSnippet ? (
+        {q.starterCode ? (
+          <pre className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs text-slate-300 overflow-x-auto">
+            <code>{q.starterCode}</code>
+          </pre>
+        ) : q.codeSnippet ? (
           <pre className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs text-slate-300 overflow-x-auto">
             <code>{q.codeSnippet}</code>
           </pre>
@@ -577,7 +585,7 @@ export default function TrainerQuestionsPage() {
                   </td>
                   <td className="p-3 text-slate-400">{q.category.name}</td>
                   <td className="p-3 text-slate-400">
-                    {q.type === "MULTIPLE_CHOICE" ? "MC" : "Free text"}
+                    {questionTypeLabel(q.type, true)}
                   </td>
                   <td className="p-3 text-slate-500">{q._count.submissions}</td>
                   <td className="p-3">{renderActions(q)}</td>

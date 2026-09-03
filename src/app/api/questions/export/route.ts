@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { toCsv } from "@/lib/csv";
+import { parseBlankAnswers } from "@/lib/coding";
 
 function stampFilename(ext: string) {
   const d = new Date();
@@ -38,6 +39,9 @@ export async function GET(request: NextRequest) {
         "type",
         "prompt",
         "codeSnippet",
+        "starterCode",
+        "codingLanguage",
+        "blankAnswers",
         "choiceLabels",
         "correctChoices",
         "idealAnswer",
@@ -56,6 +60,9 @@ export async function GET(request: NextRequest) {
         q.type,
         q.prompt,
         q.codeSnippet,
+        q.starterCode,
+        q.codingLanguage,
+        parseBlankAnswers(q.solution?.blankAnswers).join(" | "),
         q.choices.map((c) => c.label).join(" | "),
         q.choices
           .filter((c) => c.isCorrect)
@@ -94,6 +101,8 @@ export async function GET(request: NextRequest) {
       tags: q.tags,
       type: q.type,
       codeSnippet: q.codeSnippet,
+      starterCode: q.starterCode,
+      codingLanguage: q.codingLanguage,
       sortOrder: q.sortOrder,
       choices: q.choices.map((c) => ({
         label: c.label,
@@ -105,6 +114,7 @@ export async function GET(request: NextRequest) {
             idealAnswer: q.solution.idealAnswer,
             explanation: q.solution.explanation,
             codeSolution: q.solution.codeSolution,
+            blankAnswers: parseBlankAnswers(q.solution.blankAnswers),
           }
         : null,
     })),

@@ -2,20 +2,20 @@
 
 Living checklist for agents. Mark items `[x]` when done, add new open work under **Open**, and move finished work to **Done** with a short note.
 
-Last updated: 2026-08-13
+Last updated: 2026-09-03
 
 ---
 
-## Progress snapshot (2026-08-13)
+## Progress snapshot (2026-09-03)
 
-Solid prototype: auth, CRUD, assignments (due/cohort/exam/named templates), media, bank import/export, grading, AI assist, time-spent tracking, light theme, keyboard nav, Docker, CI, ~115 questions. Remaining: **near-duplicate content review** and optional extra tutor HTML imports.
+Solid prototype: auth, CRUD, assignments, media, bank import/export, grading, AI assist, time-spent tracking, light theme, keyboard nav, Docker, CI, coding exercises (fill-in-the-blank IDE), ~117 questions. Remaining: **near-duplicate content review** and optional extra tutor HTML imports.
 
 ---
 
 ## Open
 
 ### Product / features
-- [ ] (time-spent tracking shipped)
+- [ ] (coding exercises shipped)
 
 ### Student UX / QoL
 - [ ] (MC keys + autosize textarea + Ctrl/⌘+Enter shipped)
@@ -31,11 +31,15 @@ Solid prototype: auth, CRUD, assignments (due/cohort/exam/named templates), medi
 
 ### Content
 - [ ] Review remaining near-duplicates between template bank and tutor bank
-- [ ] Optional: import more modules from other tutor HTML files if provided
 
 ---
 
 ## Done
+
+### Coding exercises in-task IDE (2026-09-03)
+- [x] `CODING` question type with `____` blanks, Python/JS runner, auto-grade on submit
+- [x] Trainer authoring in the question editor; student three-pane IDE (instructions / editor / output)
+- [x] Seeded Dice coefficient + Dataset `__len__`/`__getitem__` exercises
 
 ### Time spent, light theme, CT/MRI tags, more API tests (2026-08-13)
 - [x] Time-spent tracking (`TimeSpent` + `POST /api/time-spent`); live timer on answer page; trainer scoreboard/submissions/CSV

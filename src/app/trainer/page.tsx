@@ -16,6 +16,9 @@ type StudentRow = {
   mcAnswered: number;
   mcCorrect: number;
   mcScorePct: number | null;
+  codingAnswered?: number;
+  codingCorrect?: number;
+  codingScorePct?: number | null;
   timeSpentMs?: number;
 };
 
@@ -124,6 +127,7 @@ export default function TrainerHomePage() {
                       <th className="text-right font-medium px-5 py-3">MC correct</th>
                       <th className="text-right font-medium px-5 py-3">Completed</th>
                       <th className="text-right font-medium px-5 py-3">Free text</th>
+                      <th className="text-right font-medium px-5 py-3">Code</th>
                       <th className="text-right font-medium px-5 py-3">Time</th>
                     </tr>
                   </thead>
@@ -169,6 +173,11 @@ export default function TrainerHomePage() {
                         </td>
                         <td className="px-5 py-3 text-right text-slate-400 tabular-nums">
                           {s.freeTextAnswered}
+                        </td>
+                        <td className="px-5 py-3 text-right text-slate-400 tabular-nums">
+                          {s.codingAnswered
+                            ? `${s.codingCorrect ?? 0}/${s.codingAnswered}`
+                            : "—"}
                         </td>
                         <td className="px-5 py-3 text-right text-slate-400 tabular-nums">
                           {(s.timeSpentMs ?? 0) > 0

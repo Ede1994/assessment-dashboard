@@ -12,6 +12,7 @@ import {
   questionIdsForPreset,
 } from "@/lib/assignmentPresets";
 import { categoryColors } from "@/lib/colors";
+import { questionTypeLabel } from "@/lib/questionTypes";
 
 type Student = {
   id: string;
@@ -748,7 +749,7 @@ export default function TrainerAssignmentsPage() {
                           {q.category.name}
                         </span>
                         <span className="text-[10px] text-slate-600">
-                          {q.type === "FREE_TEXT" ? "Free text" : "MC"}
+                          {questionTypeLabel(q.type, true)}
                         </span>
                       </div>
                       <p className="text-sm text-slate-200">{q.title}</p>

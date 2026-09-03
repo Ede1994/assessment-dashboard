@@ -4,10 +4,12 @@ import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
+import { CodeExercise } from "@/components/CodeExercise";
 import { LoadingSkeleton } from "@/components/LoadingSkeleton";
 import { MathText } from "@/components/MathText";
 import { useTimeSpent } from "@/hooks/useTimeSpent";
 import { categoryColors } from "@/lib/colors";
+import { questionTypeLabel } from "@/lib/questionTypes";
 import { formatDuration } from "@/lib/time";
 import type { ChoiceDto, QuestionListItem, SubmissionDto } from "@/lib/types";
 
@@ -16,6 +18,10 @@ type QuestionDetail = Omit<QuestionListItem, "answered"> & {
   examMode?: boolean;
   mcLocked?: boolean;
   timeSpentMs?: number;
+  starterCode?: string | null;
+  codingLanguage?: "PYTHON" | "JAVASCRIPT" | null;
+  codingCorrect?: boolean | null;
+  blankResults?: boolean[] | null;
 };
 
 function draftKey(questionId: string) {
@@ -33,6 +39,8 @@ export default function StudentQuestionPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [mcCorrect, setMcCorrect] = useState<boolean | null>(null);
+  const [codingCorrect, setCodingCorrect] = useState<boolean | null>(null);
+  const [blankResults, setBlankResults] = useState<boolean[] | null>(null);
   const [prevId, setPrevId] = useState<string | null>(null);
   const [nextId, setNextId] = useState<string | null>(null);
   const [draftHint, setDraftHint] = useState("");
@@ -66,12 +74,18 @@ export default function StudentQuestionPage() {
         setMcCorrect(
           typeof data.mcCorrect === "boolean" ? data.mcCorrect : null,
         );
+        setCodingCorrect(
+          typeof data.codingCorrect === "boolean" ? data.codingCorrect : null,
+        );
+        setBlankResults(
+          Array.isArray(data.blankResults) ? data.blankResults : null,
+        );
         setMcLocked(Boolean(data.mcLocked));
         setExamMode(Boolean(data.examMode));
 
         const saved = data.submission?.textAnswer ?? "";
         let initialText = saved;
-        if (data.type === "FREE_TEXT" && !saved) {
+        if ((data.type === "FREE_TEXT" || data.type === "CODING") && !saved) {
           try {
             const draft = localStorage.getItem(draftKey(params.id));
             if (draft) {
@@ -112,7 +126,8 @@ export default function StudentQuestionPage() {
   }, [params.id]);
 
   useEffect(() => {
-    if (!question || question.type !== "FREE_TEXT") return;
+    if (!question || (question.type !== "FREE_TEXT" && question.type !== "CODING"))
+      return;
     if (loadedId.current !== question.id) return;
     if (question.submission?.textAnswer) return;
 
@@ -161,8 +176,7 @@ export default function StudentQuestionPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [question, mcLocked, saving]);
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function persistAnswer(nextText = textAnswer, nextChoice = selectedChoiceId) {
     if (!question || mcLocked) return;
     setSaving(true);
     setMessage("");
@@ -174,9 +188,11 @@ export default function StudentQuestionPage() {
         body: JSON.stringify({
           questionId: question.id,
           textAnswer:
-            question.type === "FREE_TEXT" ? textAnswer : null,
+            question.type === "FREE_TEXT" || question.type === "CODING"
+              ? nextText
+              : null,
           selectedChoiceId:
-            question.type === "MULTIPLE_CHOICE" ? selectedChoiceId : null,
+            question.type === "MULTIPLE_CHOICE" ? nextChoice : null,
         }),
       });
       const data = await res.json();
@@ -206,6 +222,27 @@ export default function StudentQuestionPage() {
               : "Saved — incorrect. You can change your answer and try again.",
           );
         }
+      } else if (question.type === "CODING" && data.grading) {
+        setCodingCorrect(Boolean(data.grading.isCorrect));
+        setBlankResults(
+          Array.isArray(data.grading.blankResults)
+            ? data.grading.blankResults
+            : null,
+        );
+        if (examMode || data.examMode) {
+          setMcLocked(true);
+          setMessage(
+            data.grading.isCorrect
+              ? "Saved — all blanks correct. Exam mode locks this answer."
+              : `Saved — ${data.grading.correctCount}/${data.grading.total} blanks correct. Exam mode locks this answer.`,
+          );
+        } else {
+          setMessage(
+            data.grading.isCorrect
+              ? "Saved — all blanks correct."
+              : `Saved — ${data.grading.correctCount}/${data.grading.total} blanks correct. You can edit and try again.`,
+          );
+        }
       } else {
         setMessage("Answer saved.");
       }
@@ -213,7 +250,18 @@ export default function StudentQuestionPage() {
         prev
           ? {
               ...prev,
-              mcLocked: examMode && question.type === "MULTIPLE_CHOICE",
+              mcLocked:
+                examMode &&
+                (question.type === "MULTIPLE_CHOICE" ||
+                  question.type === "CODING"),
+              codingCorrect:
+                question.type === "CODING"
+                  ? Boolean(data.grading?.isCorrect)
+                  : prev.codingCorrect,
+              blankResults:
+                question.type === "CODING" && Array.isArray(data.grading?.blankResults)
+                  ? data.grading.blankResults
+                  : prev.blankResults,
               submission: {
                 ...(prev.submission ?? {
                   id: data.submission?.id ?? "",
@@ -222,9 +270,11 @@ export default function StudentQuestionPage() {
                   updatedAt: new Date().toISOString(),
                 }),
                 textAnswer:
-                  question.type === "FREE_TEXT" ? textAnswer.trim() : null,
+                  question.type === "FREE_TEXT" || question.type === "CODING"
+                    ? nextText.trim()
+                    : null,
                 selectedChoiceId:
-                  question.type === "MULTIPLE_CHOICE" ? selectedChoiceId : null,
+                  question.type === "MULTIPLE_CHOICE" ? nextChoice : null,
                 trainerScore: null,
                 trainerPassed: null,
                 trainerComment: null,
@@ -239,6 +289,11 @@ export default function StudentQuestionPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    await persistAnswer();
   }
 
   if (loading) {
@@ -280,6 +335,145 @@ export default function StudentQuestionPage() {
     ? question.submission
     : null;
 
+  const navLinks = (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <Link
+        href="/student"
+        className="text-xs text-slate-400 hover:text-sky-300 transition inline-flex items-center gap-2"
+      >
+        <i className="fa-solid fa-arrow-left" />
+        Back to all questions
+      </Link>
+      <div className="flex items-center gap-2">
+        {prevId ? (
+          <Link
+            href={`/student/questions/${prevId}`}
+            className="text-xs px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 hover:border-slate-600 transition"
+          >
+            <i className="fa-solid fa-chevron-left mr-1.5" />
+            Previous
+          </Link>
+        ) : (
+          <span className="text-xs px-3 py-1.5 rounded-lg border border-slate-900 text-slate-600">
+            Previous
+          </span>
+        )}
+        {nextId ? (
+          <Link
+            href={`/student/questions/${nextId}`}
+            className="text-xs px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 hover:border-slate-600 transition"
+          >
+            Next
+            <i className="fa-solid fa-chevron-right ml-1.5" />
+          </Link>
+        ) : (
+          <span className="text-xs px-3 py-1.5 rounded-lg border border-slate-900 text-slate-600">
+            Next
+          </span>
+        )}
+      </div>
+    </div>
+  );
+
+  if (question.type === "CODING") {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <AppHeader
+          title="Student Assessment Platform"
+          subtitle={`${question.category.name} • ${question.tags}`}
+          badge="Student"
+          nav={[
+            { href: "/student", label: "My tasks", icon: "fa-list-check" },
+          ]}
+          progress={progress}
+        />
+        <main className="flex-1 w-full min-h-0 flex flex-col px-4 lg:px-8 py-4 gap-3">
+          {navLinks}
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`p-2 ${colors.bg} ${colors.text} border ${colors.border} rounded-lg text-xs font-bold`}
+            >
+              {question.roundLabel}
+            </span>
+            <h2 className="text-base font-bold text-slate-100">
+              {question.title}
+            </h2>
+            <span className="text-xs text-slate-500 border border-slate-800 px-2 py-1 rounded-full">
+              {questionTypeLabel(question.type)}
+            </span>
+            {examMode ? (
+              <span className="text-xs px-2.5 py-1 rounded-full border border-amber-500/30 text-amber-300 bg-amber-500/10">
+                Exam mode
+              </span>
+            ) : null}
+            {codingCorrect != null ? (
+              <span
+                className={`text-xs px-2.5 py-1 rounded-full border ${
+                  codingCorrect
+                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                    : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                }`}
+              >
+                {codingCorrect ? "Correct" : "Needs work"}
+              </span>
+            ) : null}
+            <span className="ml-auto text-[11px] text-slate-500 tabular-nums">
+              <i className="fa-regular fa-clock mr-1" />
+              {formatDuration(displayMs)}
+              {draftHint ? ` · ${draftHint}` : ""}
+            </span>
+          </div>
+          {mcLocked ? (
+            <p className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+              Exam mode locked this coding exercise after your first submit.
+            </p>
+          ) : null}
+          {feedback ? (
+            <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-3 text-sm">
+              <span className="text-xs font-bold text-emerald-300">
+                Trainer feedback
+              </span>
+              {feedback.trainerComment ? (
+                <p className="text-slate-200 mt-1 whitespace-pre-wrap">
+                  {feedback.trainerComment}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[minmax(16rem,30%)_1fr] gap-3">
+            <aside className="bg-slate-900 border border-slate-800 rounded-2xl p-5 overflow-y-auto min-h-[12rem]">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                Exercise
+              </p>
+              <div className="text-sm text-slate-300 leading-relaxed">
+                <MathText text={question.prompt} />
+              </div>
+              <p className="text-[11px] text-slate-500 mt-4">
+                Replace each {`____`} blank. Run to see output, then submit to
+                check your answers.
+              </p>
+            </aside>
+            <CodeExercise
+              key={question.id}
+              starterCode={question.starterCode ?? ""}
+              language={question.codingLanguage ?? "PYTHON"}
+              savedAnswer={textAnswer}
+              locked={mcLocked}
+              saving={saving}
+              message={message}
+              error={error}
+              blankResults={blankResults}
+              onDraftChange={setTextAnswer}
+              onSubmit={({ textAnswer: next }) => {
+                void persistAnswer(next);
+              }}
+            />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       <AppHeader
@@ -293,43 +487,7 @@ export default function StudentQuestionPage() {
       />
 
       <main className="max-w-3xl mx-auto px-4 lg:px-8 py-8 flex-1 w-full space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link
-            href="/student"
-            className="text-xs text-slate-400 hover:text-sky-300 transition inline-flex items-center gap-2"
-          >
-            <i className="fa-solid fa-arrow-left" />
-            Back to all questions
-          </Link>
-          <div className="flex items-center gap-2">
-            {prevId ? (
-              <Link
-                href={`/student/questions/${prevId}`}
-                className="text-xs px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 hover:border-slate-600 transition"
-              >
-                <i className="fa-solid fa-chevron-left mr-1.5" />
-                Previous
-              </Link>
-            ) : (
-              <span className="text-xs px-3 py-1.5 rounded-lg border border-slate-900 text-slate-600">
-                Previous
-              </span>
-            )}
-            {nextId ? (
-              <Link
-                href={`/student/questions/${nextId}`}
-                className="text-xs px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 hover:border-slate-600 transition"
-              >
-                Next
-                <i className="fa-solid fa-chevron-right ml-1.5" />
-              </Link>
-            ) : (
-              <span className="text-xs px-3 py-1.5 rounded-lg border border-slate-900 text-slate-600">
-                Next
-              </span>
-            )}
-          </div>
-        </div>
+        {navLinks}
 
         <article className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5">
           <div className="flex items-center gap-3 flex-wrap">
@@ -342,7 +500,7 @@ export default function StudentQuestionPage() {
               {question.tags}
             </span>
             <span className="text-xs text-slate-500 border border-slate-800 px-2 py-1 rounded-full">
-              {question.type === "FREE_TEXT" ? "Free text" : "Multiple choice"}
+              {questionTypeLabel(question.type)}
             </span>
             {examMode ? (
               <span className="text-xs px-2.5 py-1 rounded-full border border-amber-500/30 text-amber-300 bg-amber-500/10">

@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { getAssignedQuestionIds } from "@/lib/assignments";
-import { parseQuestionBody } from "@/lib/questionInput";
+import { blankAnswersJson, parseQuestionBody } from "@/lib/questionInput";
+import { countBlanks } from "@/lib/coding";
 import { QuestionType } from "@/generated/prisma/client";
 
 export async function GET() {
@@ -33,6 +34,7 @@ export async function GET() {
             selectedChoiceId: true,
             submittedAt: true,
             updatedAt: true,
+            codingPassed: true,
             selectedChoice: { select: { isCorrect: true } },
           },
         },
@@ -63,6 +65,10 @@ export async function GET() {
       q.type === QuestionType.MULTIPLE_CHOICE && raw?.selectedChoice
         ? Boolean(raw.selectedChoice.isCorrect)
         : null;
+    const codingCorrect =
+      q.type === QuestionType.CODING && raw
+        ? Boolean(raw.codingPassed)
+        : null;
     const submission = raw
       ? {
           id: raw.id,
@@ -70,6 +76,7 @@ export async function GET() {
           selectedChoiceId: raw.selectedChoiceId,
           submittedAt: raw.submittedAt,
           updatedAt: raw.updatedAt,
+          codingPassed: raw.codingPassed,
         }
       : null;
     const timeSpentMs = timeByQuestion.get(q.id) ?? 0;
@@ -81,6 +88,10 @@ export async function GET() {
       tags: q.tags,
       type: q.type,
       codeSnippet: q.codeSnippet,
+      starterCode: q.type === QuestionType.CODING ? q.starterCode : null,
+      codingLanguage: q.codingLanguage,
+      blankCount:
+        q.type === QuestionType.CODING ? countBlanks(q.starterCode ?? "") : 0,
       sortOrder: q.sortOrder,
       category: {
         id: q.category.id,
@@ -97,6 +108,7 @@ export async function GET() {
       })),
       answered: Boolean(submission),
       mcCorrect,
+      codingCorrect,
       timeSpentMs,
       submission,
     };
@@ -109,6 +121,11 @@ export async function GET() {
   const freeTextAnswered = payload.filter(
     (q) => q.type === QuestionType.FREE_TEXT && q.answered,
   ).length;
+  const codingAnswered = payload.filter(
+    (q) => q.type === QuestionType.CODING && q.answered,
+  ).length;
+  const codingCorrectCount = payload.filter((q) => q.codingCorrect === true)
+    .length;
   const timeSpentMs = payload.reduce((sum, q) => sum + q.timeSpentMs, 0);
 
   return NextResponse.json({
@@ -128,6 +145,12 @@ export async function GET() {
         mcAnswered === 0
           ? null
           : Math.round((mcCorrectCount / mcAnswered) * 100),
+      codingAnswered,
+      codingCorrect: codingCorrectCount,
+      codingScorePct:
+        codingAnswered === 0
+          ? null
+          : Math.round((codingCorrectCount / codingAnswered) * 100),
       timeSpentMs,
     },
   });
@@ -165,12 +188,15 @@ export async function POST(request: Request) {
       tags: data.tags,
       type: data.type,
       codeSnippet: data.codeSnippet,
+      starterCode: data.starterCode ?? null,
+      codingLanguage: data.codingLanguage ?? null,
       sortOrder,
       solution: {
         create: {
           idealAnswer: data.idealAnswer,
           explanation: data.explanation,
           codeSolution: data.codeSolution,
+          blankAnswers: blankAnswersJson(data.blankAnswers),
         },
       },
       choices:

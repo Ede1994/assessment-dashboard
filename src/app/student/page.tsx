@@ -9,6 +9,7 @@ import { MathText } from "@/components/MathText";
 import { listItemClass, useListKeyboard } from "@/hooks/useListKeyboard";
 import { categoryColors } from "@/lib/colors";
 import { formatDuration } from "@/lib/time";
+import { questionTypeLabel } from "@/lib/questionTypes";
 import type { CategoryDto, ProgressDto, QuestionListItem } from "@/lib/types";
 
 type StatusFilter = "all" | "unanswered" | "answered" | "incorrect";
@@ -165,8 +166,8 @@ export default function StudentDashboardPage() {
                 Your progress
               </h2>
               <p className="text-sm text-slate-400">
-                Work through free-text and multiple-choice tasks. Solutions stay
-                hidden until your trainer releases feedback.
+                Work through free-text, multiple-choice, and coding exercises.
+                Solutions stay hidden until your trainer releases feedback.
               </p>
               {assignmentMode ? (
                 <p className="text-xs text-emerald-400 mt-3">
@@ -210,7 +211,7 @@ export default function StudentDashboardPage() {
           </div>
 
           {!loading && progress.total > 0 ? (
-            <div className="mt-5 grid grid-cols-2 sm:grid-cols-5 gap-3 relative">
+            <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 relative">
               <ProgressStat
                 label="Complete"
                 value={`${pctComplete}%`}
@@ -238,6 +239,19 @@ export default function StudentDashboardPage() {
                 label="Free text"
                 value={String(progress.freeTextAnswered ?? 0)}
                 detail="submitted"
+              />
+              <ProgressStat
+                label="Code score"
+                value={
+                  progress.codingAnswered
+                    ? `${progress.codingScorePct ?? 0}%`
+                    : "—"
+                }
+                detail={
+                  progress.codingAnswered
+                    ? `${progress.codingCorrect ?? 0}/${progress.codingAnswered} correct`
+                    : "no code yet"
+                }
               />
               <ProgressStat
                 label="Time spent"
@@ -357,7 +371,7 @@ export default function StudentDashboardPage() {
                         {q.tags}
                       </span>
                       <span className="text-xs text-slate-500 border border-slate-800 px-2 py-1 rounded-full">
-                        {q.type === "FREE_TEXT" ? "Free text" : "Multiple choice"}
+                        {questionTypeLabel(q.type)}
                       </span>
                       {(q.timeSpentMs ?? 0) > 0 ? (
                         <span className="text-xs text-slate-500 border border-slate-800 px-2 py-1 rounded-full tabular-nums">
@@ -368,18 +382,25 @@ export default function StudentDashboardPage() {
                       <h3 className="text-base font-bold text-slate-100">{q.title}</h3>
                     </div>
                     {q.answered ? (
-                      q.type === "MULTIPLE_CHOICE" && q.mcCorrect != null ? (
+                      (q.type === "MULTIPLE_CHOICE" && q.mcCorrect != null) ||
+                      (q.type === "CODING" && q.codingCorrect != null) ? (
                         <span
                           className={`text-xs px-3 py-1.5 rounded-lg border ${
-                            q.mcCorrect
+                            (q.type === "CODING" ? q.codingCorrect : q.mcCorrect)
                               ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                               : "bg-rose-500/10 text-rose-400 border-rose-500/20"
                           }`}
                         >
                           <i
-                            className={`fa-solid ${q.mcCorrect ? "fa-circle-check" : "fa-circle-xmark"} mr-1`}
+                            className={`fa-solid ${
+                              (q.type === "CODING" ? q.codingCorrect : q.mcCorrect)
+                                ? "fa-circle-check"
+                                : "fa-circle-xmark"
+                            } mr-1`}
                           />
-                          {q.mcCorrect ? "Correct" : "Incorrect"}
+                          {(q.type === "CODING" ? q.codingCorrect : q.mcCorrect)
+                            ? "Correct"
+                            : "Incorrect"}
                         </span>
                       ) : (
                         <span className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">

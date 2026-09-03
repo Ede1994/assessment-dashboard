@@ -114,6 +114,39 @@ code {
   display: none;
 }
 
+.coding-blank {
+  display: inline-block;
+  vertical-align: baseline;
+  min-width: 4ch;
+  margin: 0 1px;
+  padding: 0 0.3rem;
+  background: rgb(12 74 110 / 0.45);
+  border: none;
+  border-bottom: 2px solid rgb(56 189 248);
+  border-radius: 3px 3px 0 0;
+  color: rgb(186 230 253);
+  font: inherit;
+  line-height: inherit;
+  outline: none;
+}
+.coding-blank:focus {
+  background: rgb(8 47 73 / 0.9);
+  box-shadow: 0 0 0 1px rgb(56 189 248 / 0.35);
+}
+.coding-blank:disabled {
+  opacity: 0.85;
+}
+.coding-blank-ok {
+  border-bottom-color: rgb(52 211 153);
+  background: rgb(6 78 59 / 0.45);
+  color: rgb(167 243 208);
+}
+.coding-blank-wrong {
+  border-bottom-color: rgb(251 113 133);
+  background: rgb(136 19 55 / 0.35);
+  color: rgb(254 205 211);
+}
+
 /* Light theme: remap the hardcoded dark slate palette used throughout the UI. */
 html.light {
   color-scheme: light;

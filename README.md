@@ -1,6 +1,6 @@
 # Student Assessment Platform
 
-Prototype assessment dashboard for medical data engineering students. Dark UI inspired by an interview-prep template, with bcrypt-backed authentication, SQLite question bank (editable in-UI), per-student task assignment, and mixed free-text / multiple-choice tasks (Python, PyTorch, CT/MRI, DICOM, AI/DL).
+Prototype assessment dashboard for medical data engineering students. Dark UI inspired by an interview-prep template, with bcrypt-backed authentication, SQLite question bank (editable in-UI), per-student task assignment, and mixed free-text, multiple-choice, and **fill-in-the-blank coding exercises** (Python, PyTorch, CT/MRI, DICOM, AI/DL).
 
 ## Stack
 
@@ -171,7 +171,8 @@ npm test             # API integration tests (auth, assignments, templates, time
 ## Grading & scoreboard
 
 - **Multiple choice** is auto-graded from `Choice.isCorrect` when a student saves an answer.
-- Students see Correct / Incorrect on their own MC answers (not the answer key for other choices).
+- **Coding exercises** use a three-pane IDE (instructions, scaffolded editor, output). Trainers mark `____` blanks in starter code; students fill only those fragments, can **Run** Python (browser via Pyodide) or JavaScript, then **Submit**. Blanks are auto-graded (whitespace-insensitive; `|` separates alternative answers).
+- Students see Correct / Incorrect on their own MC and coding answers (not the answer key).
 - Trainers can **manually grade free-text** on `/trainer/submissions` (score 0–100, pass/fail, comment) and optionally **release feedback** so the student sees it on the answer page.
 - Trainers see an **MC scoreboard** on `/trainer` (correct/answered %, completion, free-text count, time spent). Click a student to open their filtered submissions.
 - Trainers can **Export CSV** or **Export PDF** (browser print) of filtered submissions on `/trainer/submissions`.

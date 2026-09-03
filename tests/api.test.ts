@@ -12,9 +12,11 @@ import {
 type QuestionDto = {
   id: string;
   title: string;
-  type: "FREE_TEXT" | "MULTIPLE_CHOICE";
+  type: "FREE_TEXT" | "MULTIPLE_CHOICE" | "CODING";
   choices: Array<{ id: string; label: string; isCorrect?: boolean }>;
   answered: boolean;
+  starterCode?: string | null;
+  codingCorrect?: boolean | null;
 };
 
 describe("API integration", () => {
@@ -468,5 +470,103 @@ describe("API integration", () => {
       body: form,
     });
     assert.equal(studentMedia.status, 401);
+  });
+
+  test("coding exercise: trainer authors blanks, student is graded, answers stay hidden", async () => {
+    const trainer = await login("trainer", "NRAD2026");
+    const catsRes = await apiFetch(trainer.jar, "/api/categories");
+    const cats = (await catsRes.json()) as {
+      categories: Array<{ id: string; slug: string }>;
+    };
+    const python = cats.categories.find((c) => c.slug === "python");
+    assert.ok(python);
+
+    const createRes = await apiFetch(trainer.jar, "/api/questions", {
+      method: "POST",
+      body: JSON.stringify({
+        categoryId: python.id,
+        title: "API coding blank test",
+        prompt: "Fill the blank so the script prints 6.",
+        roundLabel: "API-CODE",
+        tags: "Coding",
+        type: "CODING",
+        codingLanguage: "PYTHON",
+        starterCode: "print(____([1, 2, 3]))\n",
+        blankAnswers: ["sum"],
+        explanation: "sum adds the numbers.",
+        idealAnswer: "sum",
+      }),
+    });
+    assert.equal(createRes.status, 201);
+    const created = (await createRes.json()) as {
+      question: { id: string; type: string; starterCode: string | null };
+    };
+    assert.equal(created.question.type, "CODING");
+    assert.match(String(created.question.starterCode), /____/);
+
+    const student = await login("student", "student");
+    const listRes = await apiFetch(student.jar, "/api/questions");
+    assert.equal(listRes.status, 200);
+    const list = (await listRes.json()) as { questions: QuestionDto[] };
+    const coding = list.questions.find((q) =>
+      /Dataset length and indexing/i.test(q.title),
+    );
+    assert.ok(coding, "expected seeded coding exercise");
+
+    const detailRes = await apiFetch(student.jar, `/api/questions/${coding.id}`);
+    assert.equal(detailRes.status, 200);
+    const detail = (await detailRes.json()) as {
+      type: string;
+      starterCode: string;
+      solution?: unknown;
+      blankCount: number;
+    };
+    assert.equal(detail.type, "CODING");
+    assert.match(detail.starterCode, /____/);
+    assert.equal(detail.blankCount, 2);
+    assert.equal(detail.solution, undefined);
+
+    const wrong = await apiFetch(student.jar, "/api/submissions", {
+      method: "POST",
+      body: JSON.stringify({
+        questionId: coding.id,
+        textAnswer: JSON.stringify({
+          v: 1,
+          blanks: ["size", "get"],
+          code: "pass",
+        }),
+      }),
+    });
+    assert.equal(wrong.status, 200);
+    const wrongBody = (await wrong.json()) as {
+      grading: { isCorrect: boolean; blankResults: boolean[] };
+    };
+    assert.equal(wrongBody.grading.isCorrect, false);
+    assert.deepEqual(wrongBody.grading.blankResults, [false, false]);
+
+    const right = await apiFetch(student.jar, "/api/submissions", {
+      method: "POST",
+      body: JSON.stringify({
+        questionId: coding.id,
+        textAnswer: JSON.stringify({
+          v: 1,
+          blanks: ["__len__", "__getitem__"],
+          code: "class PatchDataset:\n    def __len__(self): ...\n",
+        }),
+      }),
+    });
+    assert.equal(right.status, 200);
+    const rightBody = (await right.json()) as {
+      grading: { isCorrect: boolean };
+      submission: { codingPassed: boolean };
+    };
+    assert.equal(rightBody.grading.isCorrect, true);
+    assert.equal(rightBody.submission.codingPassed, true);
+
+    const again = await apiFetch(student.jar, "/api/questions");
+    const againBody = (await again.json()) as { questions: QuestionDto[] };
+    const row = againBody.questions.find((q) => q.id === coding.id);
+    assert.ok(row?.answered);
+    assert.equal(row?.codingCorrect, true);
   });
 });

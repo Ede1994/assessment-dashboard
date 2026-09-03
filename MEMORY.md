@@ -2,7 +2,7 @@
 
 Shared memory for agents across chats/sessions. Write like a human notebook: durable facts, decisions, pitfalls, and “where things live.” Newest entries at the top of **Session log**.
 
-Last updated: 2026-08-13
+Last updated: 2026-09-03
 
 ---
 
@@ -24,7 +24,7 @@ Last updated: 2026-08-13
 | Stack | Next.js App Router + Prisma + SQLite | Fast single-app prototype |
 | Auth | bcrypt password hashes + iron-session cookies | Real credential storage; signed sessions |
 | Self-register | Students only (`/register`) | Trainers provisioned by trainers |
-| Answer types | Mix free-text + multiple choice | User choice |
+| Answer types | Mix free-text + multiple choice + coding exercises | User choice |
 | Solutions visibility | Never on student APIs | Trainer-only via `/api/solutions` and trainer pages |
 | Trainer feedback | Released only when `feedbackReleased` | Students see score/pass/comment after trainer opts in |
 | Task scoping | Per-student `QuestionAssignment` | e.g. CT track without MRI tasks |
@@ -53,7 +53,7 @@ Last updated: 2026-08-13
 ```
 /login
 /student                    → assigned questions + progress/filters/resume
-/student/questions/[id]     → answer form; next/prev; draft autosave; released feedback
+/student/questions/[id]     → answer form or coding IDE; next/prev; draft autosave; released feedback
 /trainer                    → overview + MC scoreboard (links to filtered submissions)
 /trainer/questions          → bank cards/list, clone, preview, import/export, media
 /trainer/categories         → create / rename / delete empty categories
@@ -103,6 +103,13 @@ MRI-heavy filter used for `student2` seed and CT-track preset (regex-ish on titl
 ---
 
 ## Session log
+
+### 2026-09-03 — In-task coding IDE (fill-in-the-blank)
+- User asked for DataCamp-style tasks where students write small code fragments in an IDE.
+- New `QuestionType.CODING` + `starterCode` / `codingLanguage` / `Solution.blankAnswers` / `Submission.codingPassed`.
+- Trainer editor: type “Coding exercise”, `____` blanks, expected answers (`|` alternatives).
+- Student: three-pane IDE (instructions, scaffolded editor, output). Run Python via Pyodide in a worker, JS in a worker; submit auto-grades blanks.
+- Seeded two Python coding tasks (Dice coefficient, Dataset `__len__`/`__getitem__`). After pull: `npx prisma db push` then `npm run db:seed`.
 
 ### 2026-08-13 — Time spent, light theme, CT/MRI tags, more tests
 - User asked to tackle the next TODOs.

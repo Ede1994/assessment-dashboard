@@ -2,7 +2,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { studentCanAccessQuestion, studentHasExamMode } from "@/lib/assignments";
-import { parseQuestionBody } from "@/lib/questionInput";
+import { blankAnswersJson, parseQuestionBody } from "@/lib/questionInput";
+import {
+  countBlanks,
+  gradeBlanks,
+  parseBlankAnswers,
+  parseCodingAnswer,
+} from "@/lib/coding";
 import { QuestionType } from "@/generated/prisma/client";
 
 type Params = { params: Promise<{ id: string }> };
@@ -57,6 +63,16 @@ export async function GET(_request: Request, { params }: Params) {
     question.type === QuestionType.MULTIPLE_CHOICE && raw?.selectedChoice
       ? Boolean(raw.selectedChoice.isCorrect)
       : null;
+  const expectedBlanks = parseBlankAnswers(question.solution?.blankAnswers);
+  const submittedCoding = parseCodingAnswer(raw?.textAnswer);
+  const codingGrade =
+    question.type === QuestionType.CODING && raw
+      ? gradeBlanks(expectedBlanks, submittedCoding?.blanks ?? [])
+      : null;
+  const codingCorrect =
+    question.type === QuestionType.CODING && raw
+      ? Boolean(raw.codingPassed ?? codingGrade?.isCorrect)
+      : null;
   const released = Boolean(raw?.feedbackReleased);
   const submission = raw
     ? {
@@ -65,6 +81,7 @@ export async function GET(_request: Request, { params }: Params) {
         selectedChoiceId: raw.selectedChoiceId,
         submittedAt: raw.submittedAt,
         updatedAt: raw.updatedAt,
+        codingPassed: raw.codingPassed,
         aiFeedback: isTrainer ? raw.aiFeedback : undefined,
         aiReviewedAt: isTrainer ? raw.aiReviewedAt : undefined,
         ...(isTrainer || released
@@ -85,7 +102,8 @@ export async function GET(_request: Request, { params }: Params) {
       : false;
   const mcLocked =
     examMode &&
-    question.type === QuestionType.MULTIPLE_CHOICE &&
+    (question.type === QuestionType.MULTIPLE_CHOICE ||
+      question.type === QuestionType.CODING) &&
     Boolean(submission);
 
   return NextResponse.json({
@@ -96,6 +114,13 @@ export async function GET(_request: Request, { params }: Params) {
     tags: question.tags,
     type: question.type,
     codeSnippet: question.codeSnippet,
+    starterCode:
+      question.type === QuestionType.CODING ? question.starterCode : null,
+    codingLanguage: question.codingLanguage,
+    blankCount:
+      question.type === QuestionType.CODING
+        ? countBlanks(question.starterCode ?? "")
+        : 0,
     sortOrder: question.sortOrder,
     categoryId: question.categoryId,
     category: question.category,
@@ -105,8 +130,17 @@ export async function GET(_request: Request, { params }: Params) {
       sortOrder: c.sortOrder,
       ...(isTrainer ? { isCorrect: c.isCorrect } : {}),
     })),
-    solution: isTrainer ? question.solution : undefined,
+    solution: isTrainer
+      ? question.solution
+        ? {
+            ...question.solution,
+            blankAnswers: expectedBlanks,
+          }
+        : null
+      : undefined,
     mcCorrect,
+    codingCorrect,
+    blankResults: codingGrade?.blankResults ?? null,
     examMode,
     mcLocked,
     timeSpentMs: timeRow?.timeSpentMs ?? 0,
@@ -156,6 +190,8 @@ export async function PUT(request: Request, { params }: Params) {
       tags: data.tags,
       type: data.type,
       codeSnippet: data.codeSnippet,
+      starterCode: data.starterCode ?? null,
+      codingLanguage: data.codingLanguage ?? null,
       ...(data.sortOrder !== undefined ? { sortOrder: data.sortOrder } : {}),
       solution: {
         upsert: {
@@ -163,11 +199,13 @@ export async function PUT(request: Request, { params }: Params) {
             idealAnswer: data.idealAnswer,
             explanation: data.explanation,
             codeSolution: data.codeSolution,
+            blankAnswers: blankAnswersJson(data.blankAnswers),
           },
           update: {
             idealAnswer: data.idealAnswer,
             explanation: data.explanation,
             codeSolution: data.codeSolution,
+            blankAnswers: blankAnswersJson(data.blankAnswers),
           },
         },
       },

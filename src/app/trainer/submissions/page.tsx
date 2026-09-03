@@ -8,6 +8,7 @@ import { MathText } from "@/components/MathText";
 import { TrainerNav } from "@/components/TrainerNav";
 import { useToast } from "@/components/Toast";
 import { formatDuration } from "@/lib/time";
+import { displayCodingAnswer } from "@/lib/coding";
 
 type StudentRow = {
   id: string;
@@ -18,6 +19,8 @@ type StudentRow = {
   mcCorrect?: number;
   mcAnswered?: number;
   mcScorePct?: number | null;
+  codingAnswered?: number;
+  codingCorrect?: number;
   timeSpentMs?: number;
 };
 
@@ -32,6 +35,7 @@ type SubmissionRow = {
   trainerComment: string | null;
   feedbackReleased: boolean;
   trainerGradedAt: string | null;
+  codingPassed?: boolean | null;
   updatedAt: string;
   timeSpentMs?: number;
   user: { id: string; username: string; displayName: string };
@@ -40,7 +44,7 @@ type SubmissionRow = {
     id: string;
     title: string;
     prompt: string;
-    type: "FREE_TEXT" | "MULTIPLE_CHOICE";
+    type: "FREE_TEXT" | "MULTIPLE_CHOICE" | "CODING";
     category: { name: string; slug: string };
     solution: {
       idealAnswer: string;
@@ -101,9 +105,9 @@ function TrainerSubmissionsContent() {
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([]);
   const [studentFilter, setStudentFilter] = useState(initialStudent);
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState<"all" | "FREE_TEXT" | "MULTIPLE_CHOICE">(
-    "all",
-  );
+  const [typeFilter, setTypeFilter] = useState<
+    "all" | "FREE_TEXT" | "MULTIPLE_CHOICE" | "CODING"
+  >("all");
   const [onlyMissingAi, setOnlyMissingAi] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -326,15 +330,21 @@ function TrainerSubmissionsContent() {
     const lines = [header.join(",")];
     for (const s of rows) {
       const answer =
-        s.question.type === "FREE_TEXT"
-          ? s.textAnswer ?? ""
-          : (s.selectedChoice?.label ?? "");
+        s.question.type === "MULTIPLE_CHOICE"
+          ? (s.selectedChoice?.label ?? "")
+          : s.question.type === "CODING"
+            ? displayCodingAnswer(s.textAnswer)
+            : s.textAnswer ?? "";
       const mcCorrect =
         s.question.type === "MULTIPLE_CHOICE" && s.selectedChoice
           ? s.selectedChoice.isCorrect
             ? "true"
             : "false"
-          : "";
+          : s.question.type === "CODING"
+            ? s.codingPassed
+              ? "true"
+              : "false"
+            : "";
       lines.push(
         [
           s.user.username,
@@ -505,7 +515,11 @@ function TrainerSubmissionsContent() {
             value={typeFilter}
             onChange={(e) =>
               setTypeFilter(
-                e.target.value as "all" | "FREE_TEXT" | "MULTIPLE_CHOICE",
+                e.target.value as
+                  | "all"
+                  | "FREE_TEXT"
+                  | "MULTIPLE_CHOICE"
+                  | "CODING",
               )
             }
             className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-sky-500"
@@ -514,6 +528,7 @@ function TrainerSubmissionsContent() {
             <option value="all">All types</option>
             <option value="FREE_TEXT">Free text only</option>
             <option value="MULTIPLE_CHOICE">Multiple choice only</option>
+            <option value="CODING">Coding only</option>
           </select>
           <label className="inline-flex items-center gap-2 text-xs text-slate-400 px-2 py-1.5 rounded-lg border border-slate-800 bg-slate-950 cursor-pointer">
             <input
@@ -626,6 +641,18 @@ function TrainerSubmissionsContent() {
                           ? "Correct (auto-graded)"
                           : "Incorrect (auto-graded)"}
                       </span>
+                    ) : s.question.type === "CODING" && s.codingPassed != null ? (
+                      <span
+                        className={`text-xs px-3 py-1.5 rounded-lg border ${
+                          s.codingPassed
+                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                            : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                        }`}
+                      >
+                        {s.codingPassed
+                          ? "Correct (auto-graded)"
+                          : "Incorrect (auto-graded)"}
+                      </span>
                     ) : s.feedbackReleased ? (
                       <span className="text-xs px-3 py-1.5 rounded-lg border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
                         Feedback released
@@ -646,6 +673,10 @@ function TrainerSubmissionsContent() {
                         <p className="text-sm text-slate-200 whitespace-pre-wrap">
                           {s.textAnswer || "—"}
                         </p>
+                      ) : s.question.type === "CODING" ? (
+                        <pre className="text-xs text-slate-200 overflow-x-auto bg-slate-900 p-2 rounded-lg border border-slate-800">
+                          <code>{displayCodingAnswer(s.textAnswer) || "—"}</code>
+                        </pre>
                       ) : (
                         <p className="text-sm text-slate-200">
                           {s.selectedChoice?.label ?? "—"}

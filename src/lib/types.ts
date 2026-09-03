@@ -25,6 +25,7 @@ export type SubmissionDto = {
   trainerComment?: string | null;
   feedbackReleased?: boolean;
   trainerGradedAt?: string | null;
+  codingPassed?: boolean | null;
 };
 
 export type QuestionListItem = {
@@ -33,13 +34,17 @@ export type QuestionListItem = {
   prompt: string;
   roundLabel: string;
   tags: string;
-  type: "FREE_TEXT" | "MULTIPLE_CHOICE";
+  type: "FREE_TEXT" | "MULTIPLE_CHOICE" | "CODING";
   codeSnippet: string | null;
+  starterCode?: string | null;
+  codingLanguage?: "PYTHON" | "JAVASCRIPT" | null;
+  blankCount?: number;
   sortOrder: number;
   category: CategoryDto;
   choices: ChoiceDto[];
   answered: boolean;
   mcCorrect: boolean | null;
+  codingCorrect?: boolean | null;
   timeSpentMs?: number;
   submission: SubmissionDto | null;
 };
@@ -51,6 +56,9 @@ export type ProgressDto = {
   mcAnswered?: number;
   mcCorrect?: number;
   mcScorePct?: number | null;
+  codingAnswered?: number;
+  codingCorrect?: number;
+  codingScorePct?: number | null;
   timeSpentMs?: number;
 };
 
@@ -59,4 +67,5 @@ export type SolutionDto = {
   idealAnswer: string;
   explanation: string;
   codeSolution: string | null;
+  blankAnswers?: string[] | null;
 };

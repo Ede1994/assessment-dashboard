@@ -20,5 +20,5 @@ if [[ ! -f .next/BUILD_ID ]]; then
   npm run build
 fi
 
-echo "==> Running API tests"
-npx tsx --test tests/api.test.ts
+echo "==> Running tests"
+npx tsx --test tests/coding.test.ts tests/api.test.ts

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { parseBlankAnswers } from "@/lib/coding";
 
 /** Trainer-only: full question bank with solutions and correct choices. */
 export async function GET() {
@@ -23,5 +24,16 @@ export async function GET() {
     },
   });
 
-  return NextResponse.json({ categories, questions });
+  return NextResponse.json({
+    categories,
+    questions: questions.map((q) => ({
+      ...q,
+      solution: q.solution
+        ? {
+            ...q.solution,
+            blankAnswers: parseBlankAnswers(q.solution.blankAnswers),
+          }
+        : null,
+    })),
+  });
 }
