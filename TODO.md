@@ -8,7 +8,7 @@ Last updated: 2026-09-03
 
 ## Progress snapshot (2026-09-03)
 
-Solid prototype: auth, CRUD, assignments, media, bank import/export, grading, AI assist, time-spent tracking, light theme, keyboard nav, Docker, CI, coding exercises (fill-in-the-blank IDE), ~117 questions. Remaining: **near-duplicate content review** and optional extra tutor HTML imports.
+Solid prototype: auth, CRUD, assignments, media, bank import/export, grading, AI assist, time-spent tracking, light theme, keyboard nav, Docker, CI, coding exercises (Python / JavaScript / MATLAB fill-in-the-blank IDE), ~119 questions. Remaining: **near-duplicate content review** and optional extra tutor HTML imports.
 
 ---
 
@@ -36,10 +36,15 @@ Solid prototype: auth, CRUD, assignments, media, bank import/export, grading, AI
 
 ## Done
 
+### MATLAB coding language (2026-09-03)
+- [x] `CodingLanguage.MATLAB` + fill-in-the-blank IDE (`script.m`); Run via RunMat WASM (unpkg)
+- [x] Language registry in `src/lib/coding.ts`; trainer language select; student GET still hides blanks
+- [x] Seeded MATLAB category: Dice (`.*`) (ML-1) and 1-based indexing (ML-2)
+
 ### Coding exercises in-task IDE (2026-09-03)
-- [x] `CODING` question type with `____` blanks, Python/JS runner, auto-grade on submit
+- [x] `CODING` question type with `____` blanks, Python/JS/MATLAB runner, auto-grade on submit
 - [x] Trainer authoring in the question editor; student three-pane IDE (instructions / editor / output)
-- [x] Seeded Dice coefficient + Dataset `__len__`/`__getitem__` exercises
+- [x] Seeded Dice coefficient + Dataset `__len__`/`__getitem__` exercises (Python) plus MATLAB Dice + indexing
 
 ### Time spent, light theme, CT/MRI tags, more API tests (2026-08-13)
 - [x] Time-spent tracking (`TimeSpent` + `POST /api/time-spent`); live timer on answer page; trainer scoreboard/submissions/CSV

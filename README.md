@@ -109,7 +109,7 @@ Or in one shot (force-reset schema + seed):
 npm run db:reset
 ```
 
-`npm run db:seed` / `db:reset` **wipe** existing users, submissions, and in-UI question edits, then recreate the demo bank. Export or re-enter custom trainer edits before reseeding if you need to keep them.
+`npm run db:seed` / `db:reset` **wipe** existing users, submissions, and in-UI question edits, then recreate the demo bank. Export or re-enter custom trainer edits before reseeding if you need to keep them. **Sign in again** afterward: demo users get new IDs, so an old session cookie will fail submits with a foreign-key error.
 
 If only app code changed (no Prisma/seed edits), you do **not** need to reseed — just `npm install` (when needed) and `npm run dev`.
 
@@ -200,7 +200,13 @@ Open the question from **My tasks**. Fill each highlighted blank, then:
 
 Drafts autosave locally until submit, same as free-text.
 
-Python runs via [Pyodide](https://pyodide.org/) loaded from jsDelivr on first **Run** (needs network; first load can take several seconds). JavaScript runs in a Web Worker. MATLAB-syntax runs via [RunMat](https://runmat.com/docs/runtime/wasm) from unpkg on first **Run** (also needs network; first load can take several seconds). This is a browser sandbox, not licensed MathWorks MATLAB: no Image Processing Toolbox, no plots, and no `torch` / CUDA / pip for Python. Use Run for scripts that should actually print; API-style fill-ins can still be graded on the blanks without a successful run.
+| Language | **Run** runtime | Limits |
+|----------|-----------------|--------|
+| Python | [Pyodide](https://pyodide.org/) from jsDelivr (first **Run** downloads the runtime) | Stdlib only: no `torch`, CUDA, or pip |
+| JavaScript | Web Worker (`new Function`) | Isolated `console`; 5s timeout |
+| MATLAB | [RunMat](https://runmat.com/docs/runtime/wasm) from unpkg (first **Run** downloads WASM) | MATLAB-**syntax**, not licensed MathWorks MATLAB: no Image Processing Toolbox, no plots. jsDelivr 403s the `.wasm`, so the worker loads from unpkg |
+
+**Run** needs outbound network. Offline or a blocked CDN fails **Run** only; **Submit** still grades blanks. Use Run for scripts that should actually print; API-style fill-ins can still be graded on the blanks without a successful run.
 
 Grading trims whitespace and treats extra spaces as equivalent (`sum(pred)` matches `sum( pred )`). It does not execute hidden unit tests on submit.
 
@@ -304,7 +310,8 @@ docker compose up --build
 - auth (invalid login + demo student/trainer)
 - assignment filter (`student2` CT-focused subset)
 - multiple-choice submit (+ unauthenticated 401)
-- coding exercise create + student submit (answer key stays hidden; blanks auto-grade)
+- coding exercise create + student submit (Python and MATLAB; answer key stays hidden; blanks auto-grade)
+- MATLAB language accepted on create; student GET still omits `solution.blankAnswers`
 
 Requires a prior or automatic `npm run build` (creates `.next` if missing).
 

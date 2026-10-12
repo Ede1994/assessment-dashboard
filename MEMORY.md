@@ -25,7 +25,7 @@ Last updated: 2026-09-03
 | Auth | bcrypt password hashes + iron-session cookies | Real credential storage; signed sessions |
 | Self-register | Students only (`/register`) | Trainers provisioned by trainers |
 | Answer types | Mix free-text + multiple choice + coding exercises | User choice |
-| Coding execution | Browser workers (JS Function; Python via Pyodide CDN; MATLAB-syntax via RunMat WASM CDN) | No server-side eval; not licensed MATLAB |
+| Coding execution | Browser workers (JS Function; Python via Pyodide/jsDelivr; MATLAB-syntax via RunMat/unpkg) | No server-side eval; not licensed MATLAB |
 | Coding grades | Compare filled `____` blanks to trainer `blankAnswers` | Never send answer key on student APIs |
 | Solutions visibility | Never on student APIs | Trainer-only via `/api/solutions` and trainer pages |
 | Trainer feedback | Released only when `feedbackReleased` | Students see score/pass/comment after trainer opts in |
@@ -94,7 +94,7 @@ MRI-heavy filter used for `student2` seed and CT-track preset (regex-ish on titl
 
 ## Operational notes / pitfalls
 
-- After schema changes: `npx prisma db push` then `npm run db:seed` (seed wipes submissions/assignments/questions).
+- After schema changes: `npx prisma db push` then `npm run db:seed` (seed wipes submissions/assignments/questions). **Log in again** after seed — session cookies still hold the previous user id.
 - Dev server: `npm run dev` → http://localhost:3000. Auth gate lives in `src/proxy.ts` (Next 16; formerly `middleware`).
 - Do **not** edit the Cursor plan file under `~/.cursor/plans/` unless the user asks; product truth is the repo + this MEMORY/TODO.
 - Autoreview may block destructive DB resets (`rm` db / force seed); request approval when needed.
@@ -112,7 +112,8 @@ MRI-heavy filter used for `student2` seed and CT-track preset (regex-ish on titl
 - Same fill-in-the-blank IDE as Python/JS; `CodingLanguage.MATLAB` + `script.m`.
 - In-browser Run via RunMat WASM (unpkg; jsDelivr 403s the wasm), telemetry off, no GPU, in-memory FS. Not licensed MATLAB.
 - Language metadata centralized in `CODING_LANGUAGES` (`src/lib/coding.ts`).
-- Seeded MATLAB category (`matlab`) with Dice (`.*`) and 1-based indexing tasks. After pull: `npx prisma db push` then `npm run db:seed`.
+- Seeded MATLAB category (`matlab`) with Dice (`.*`) and 1-based indexing tasks. After pull: `npx prisma db push` then `npm run db:seed` (then **log in again**).
+- README coding section: language runtime table, MATLAB examples, test coverage; TODO snapshot ~119.
 
 ### 2026-09-03 — In-task coding IDE (fill-in-the-blank)
 - User asked for DataCamp-style tasks where students write small code fragments in an IDE.
