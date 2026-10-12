@@ -8,11 +8,51 @@ Last updated: 2026-10-12
 
 ## Progress snapshot (2026-10-12)
 
-Solid prototype: auth, CRUD, assignments, media, bank import/export, grading, AI assist, time-spent tracking, light theme, keyboard nav, Docker, CI, coding exercises (Python / JavaScript / MATLAB fill-in-the-blank IDE), ~143 questions including clinical Foundation Models and Agentic Systems topics. Remaining: **near-duplicate content review** and optional extra tutor HTML imports.
+Solid prototype: auth, CRUD, assignments, media, bank import/export, grading, AI assist, time-spent tracking, light theme, keyboard nav, Docker, CI, coding exercises (Python / JavaScript / MATLAB fill-in-the-blank IDE), ~143 questions including clinical Foundation Models and Agentic Systems topics. Next priority: **persistent server deployment behind a Cloudflare Tunnel**. Content follow-up: **near-duplicate review** and optional extra tutor HTML imports.
 
 ---
 
 ## Open
+
+### Server deployment — container preparation (next priority)
+
+Target: **CT 104 — `assessment`**, an unprivileged Proxmox LXC running Ubuntu 24.04 LTS. User-reported allocation: 2 vCores, 4 GB RAM + 512 MB swap, 20 GB root disk on `local-lvm`; `vmbr0` with DHCP, currently `192.168.178.36`; `nesting=1`, `keyctl=1`, CT autostart enabled. Docker Engine 29.1.3, Compose plugin 2.40.3, Git, and curl are installed. These details are reported by the user; the remote runtime has not yet been verified.
+
+Recommended route: browser HTTPS → Cloudflare → `cloudflared` in CT 104 → `http://app:3000` on a shared Docker network. Use one app instance and SQLite, with persistent app data on the CT filesystem. The public hostname is still to be chosen, e.g. `assessment.example.com`.
+
+- [x] Provision CT 104 and install Docker/Compose, Git, and curl (user confirmed).
+- [ ] Verify Docker execution inside the unprivileged LXC (`docker run --rm hello-world`), Docker starts at boot, CPU architecture (`uname -m`), and available memory/disk. Investigate actual runtime errors before changing LXC isolation settings.
+- [ ] Confirm the domain is on Cloudflare and choose the public hostname; reserve `192.168.178.36` in DHCP if it will be used for administration or a connector outside this CT. A same-network containerized tunnel uses the service name and does not depend on a fixed LAN IP.
+- [ ] Choose a deployment directory inside CT 104 (e.g. `/opt/assessment-dashboard`); keep persistent data there or in named Docker volumes. Validate runtime-user writes from Docker; set ownership inside the LXC rather than assuming identical UIDs on the Proxmox host. Check any additional Docker user-namespace mapping if enabled.
+- [ ] Add a production Compose configuration with `app` and `cloudflared` on the same network, restart policies, and no publicly published app port. If the connector runs directly on the host instead, bind the app to `127.0.0.1:3000:3000` and route to `http://127.0.0.1:3000`.
+- [ ] Replace hardcoded production session secrets with required runtime configuration; generate a unique secret (at least 32 characters, e.g. `openssl rand -base64 48`), keep it stable across restarts, and keep `SESSION_COOKIE_SECURE=true` for public HTTPS. Compose must actually inject the variables; an env file alone does not override the current hardcoded `environment` values.
+- [ ] Store the Cloudflare tunnel token as a separate deployment secret available only to `cloudflared`; pin a reviewed connector image version and document token rotation.
+- [ ] Fix first-run database initialization: the current `./data/dev.db` bind mount hides the image's seeded database, and `touch data/dev.db` does not create tables. Initialize or restore a real DB before mounting it, or add initialization that runs only when storage is empty; never reseed on every startup.
+- [ ] Persist the SQLite database directory (including journal/WAL sidecars) and uploads separately; ensure both are writable by the runtime UID/GID `1001:1001`. Test persistence across container replacement and host reboot.
+- [ ] Provide a maintenance image/job with the Prisma/TypeScript tooling and source files needed for schema updates and `db:add:clinical-ai`; the current runtime prunes `tsx`/Prisma CLI and omits `scripts/` and the imported `src/lib` files. Back up before schema changes; content-only updates must preserve submissions and edited questions.
+- [ ] Exclude `.env*` (except `.env.example`), deployment secrets, `data/`, uploaded media, and SQLite sidecars from Docker build context; the current `.dockerignore` excludes only `.env`, not `.env.production` or other secret env files. Ignore server data/secrets in Git as well.
+- [ ] Run the webfont copy step during clean Docker builds; `npm ci --ignore-scripts` skips the postinstall copy, and a fresh Git checkout has no generated `public/webfonts`.
+- [ ] Prepare a production bootstrap/account procedure: replace seeded trainer/student passwords before exposing the hostname, hide demo login shortcuts for public use, and decide whether public self-registration should be enabled or gated.
+
+### Server deployment — tunnel and first launch
+
+- [ ] Create a persistent, remotely managed Cloudflare Tunnel, start the connector on the server, and map the chosen public hostname to the appropriate internal app address. A containerized connector must use `app:3000` on the shared network, not its own `localhost`.
+- [ ] Allow outbound tunnel traffic on port `7844` (UDP/QUIC or TCP/HTTP2) and required DNS/build/download traffic; keep inbound app ports closed. Enable public HTTPS and avoid rules that cache authenticated pages or API responses.
+- [ ] Decide whether the site is open to app-authenticated users or additionally restricted by Cloudflare Access; for a restricted class/team, configure an explicit Access allow policy before sharing the URL.
+- [ ] Add an app readiness/health check and check connector status/logs. Verify real client-IP forwarding and auth rate limiting through the trusted tunnel, HTTPS redirects, secure session cookies, and absence of direct public origin access.
+- [ ] Verify trainer/student login, registration policy, assignments, answer submission, solutions restricted to trainers, and media upload/playback through the public hostname. Check that files uploaded after container startup remain available after a restart.
+- [ ] Decide whether uploaded media may be publicly accessible: `/public/uploads` currently serves files without app-level authorization. If private media is required, move it outside `public` and serve it through an authenticated route before launch.
+- [ ] Configure optional SMTP and Open WebUI through explicit container environment values and reachable service addresses. Container `127.0.0.1` refers to that container; use a service name or a configured host/LAN address for other services. Browser coding runtimes also need access to their public CDNs.
+
+### Server deployment — operations
+
+- [ ] Schedule consistent SQLite backups (online backup API / `sqlite3 .backup`, or stop the app before copying) plus upload backups; keep an off-server copy and verify a restore.
+- [ ] Document the release procedure: backup → build/pull a versioned image → run required maintenance → recreate app → check the public hostname; document rollback including DB compatibility. Image rebuilds must not replace the persistent DB or run a destructive seed.
+- [ ] Add disk-space/log monitoring and test recovery after server/container/tunnel restart; define how app and connector updates are applied.
+- [ ] Account for CT 104's 20 GB disk: measure the first build's disk/RAM use, configure Docker log rotation, retain only needed release/build artifacts, and monitor free space for SQLite/uploads. Keep backup copies off the CT; inspect `docker system df` before any cleanup and preserve data volumes.
+- [ ] Update README with a tested deployment runbook, production env example, first-run initialization, backup/restore, and maintenance commands. Correct the existing Docker section's suggestion that an empty mounted DB is initialized automatically.
+
+References: [Cloudflare Tunnel setup](https://developers.cloudflare.com/tunnel/get-started/), [tunnel firewall requirements](https://developers.cloudflare.com/tunnel/configuration/), [Docker Compose networking](https://docs.docker.com/compose/how-tos/networking/), and [bind-mount behavior](https://docs.docker.com/engine/storage/bind-mounts/).
 
 ### Product / features
 - [ ] (coding exercises shipped)
