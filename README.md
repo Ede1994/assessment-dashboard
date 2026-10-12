@@ -132,6 +132,23 @@ Each question stores prompt, optional read-only code snippet, type (free text / 
 
 Seed data still bootstraps categories and the initial bank via `npm run db:seed`.
 
+### Clinical AI topics
+
+**Foundation Models** and **Agentic Systems** each contain 12 questions: four Easy, four Medium, and four Hard. Difficulty appears in the question label and searchable tags. The 24 original, fictional clinical scenarios include multiple-choice questions and case-based free-text questions, with trainer-only worked answers, explanations, and concept references.
+
+- **Foundation Models:** clinical pretraining, multimodal evidence, faithful notes, RAG over approved protocols, LoRA adaptation, EHR leakage, report retrieval, alert burden, imaging domain shift, ambient scribe evaluation, and memorization/privacy.
+- **Agentic Systems:** workflows and tool selection, scheduling, clinician approval, bounded agent loops, prompt injection, duplicate referrals, patient-scoped memory, laboratory data validation, discharge coordination, evaluation, provenance, and partial-failure recovery.
+
+For an existing database, add these topics without reseeding:
+
+```bash
+npm run db:add:clinical-ai
+```
+
+The importer appends missing categories, questions, solutions, and demo-track assignments in one transaction. Re-running it skips questions already identified by category and curriculum label, preserving existing trainer edits, users, submissions, and assignment settings. Keep curriculum labels such as `FM-E1 · Easy` intact if you want repeat imports to recognize those questions. The bundled `student` and `student2` accounts receive eligible new questions; trainers assign other students through **Assign tasks**. Fresh seeds include the topics automatically. No schema change or new login is needed for the additive import.
+
+Technical references include [generalist medical foundation models](https://www.nature.com/articles/s41586-023-05881-4), [WHO guidance on large multimodal models](https://www.who.int/news/item/18-01-2024-who-releases-ai-ethics-and-governance-guidance-for-large-multi-modal-models), [RAG](https://arxiv.org/abs/2005.11401), [LoRA](https://arxiv.org/abs/2106.09685), [DECIDE-AI](https://www.nature.com/articles/s41591-022-01772-9), [agent design patterns](https://www.anthropic.com/engineering/building-effective-agents), and [HL7 FHIR R4 HTTP interactions](https://hl7.org/fhir/R4/http.html). Individual solution explanations name the relevant concept reference. The clinical workflow designs and numeric examples are teaching scenarios.
+
 ## Assignments
 
 Trainers open **Assign tasks** (`/trainer/assignments`), pick a student, then select individual questions, whole categories (+/−), built-in presets (**CT-track**, **CT-only**, **MRI-track**, **PyTorch-only**), or **saved named templates**. Save the current selection as a reusable template (overwrite if the name already exists). Optional **due date**, **exam mode** (soft-locks multiple-choice and coding after first submit), **copy from another student**, and **cohort** multi-select apply the same set to several students at once. Saving replaces each target student’s assignment set. Students with no assignments temporarily see the full bank; due dates appear on the student dashboard with overdue highlighting.

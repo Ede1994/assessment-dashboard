@@ -6,6 +6,7 @@ import { tutorQuestionsEn } from "./tutorQuestionsEn";
 import { ctQuestionsEn } from "./ctQuestionsEn";
 import { mriQuestionsEn } from "./mriQuestionsEn";
 import { interviewQuestionsEn } from "./interviewQuestionsEn";
+import { clinicalAiCategories } from "./clinicalAiQuestionsEn";
 import { hashPassword } from "../src/lib/password";
 import { isMriHeavy } from "../src/lib/assignmentPresets";
 import { serializeBlankAnswers } from "../src/lib/coding";
@@ -781,6 +782,7 @@ fprintf('%d %s\\n', n, second)
     color: "violet",
     questions: [],
   },
+  ...clinicalAiCategories,
 ];
 
 async function main() {

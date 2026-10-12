@@ -13,6 +13,7 @@
     "lint": "eslint",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "db:add:clinical-ai": "tsx scripts/add-clinical-ai.ts",
     "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
     "postinstall": "prisma generate && node scripts/copy-webfonts.mjs",
     "copy:webfonts": "node scripts/copy-webfonts.mjs",

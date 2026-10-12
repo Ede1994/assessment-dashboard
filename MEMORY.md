@@ -2,7 +2,7 @@
 
 Shared memory for agents across chats/sessions. Write like a human notebook: durable facts, decisions, pitfalls, and “where things live.” Newest entries at the top of **Session log**.
 
-Last updated: 2026-09-03
+Last updated: 2026-10-12
 
 ---
 
@@ -40,7 +40,7 @@ Last updated: 2026-09-03
 
 | User | Pass | Role | Seed behavior |
 |------|------|------|----------------|
-| `student` | `student` | STUDENT | All questions assigned (~119) — “full track” |
+| `student` | `student` | STUDENT | All questions assigned (~143) — “full track” |
 | `student2` | `student2` | STUDENT | CT-focused: MRI-heavy titles/tags filtered out |
 | `trainer` | `NRAD2026` | TRAINER | Full bank, assignments UI, submissions |
 
@@ -85,7 +85,7 @@ API: /api/auth/*, /api/questions, /api/questions/[id]/clone, /api/questions/expo
 
 1. **Prep dashboard HTML** → original ~16 rounds (PyTorch OOM, DICOM resampling, GroupKFold, U-Net skip mismatch, STAPLE, etc.) translated/adapted + extra CT/MRI items.
 2. **Tutor HTML** `~/Downloads/deep_learning_medizin_tutor.html` → 41 quiz FAQ items; **39** imported in English; **skipped duplicates:** Q1.6 (log_softmax / numerical stability), Q2.4 (anisotropic 3D CNN — overlaps existing anisotropic U-Net topic).
-3. Categories include: `pytorch`, `python`, `matlab`, `medical-data`, `ai-dl`, `dl-basics`, `ct-mri`, `dicom`, `governance`, `architecture`.
+3. Categories include: `pytorch`, `python`, `matlab`, `medical-data`, `ai-dl`, `dl-basics`, `ct-mri`, `dicom`, `governance`, `architecture`, `foundation-models`, `agentic-systems`.
 4. **Interview Q&A** [amine0110/Medical-Imaging-Interview-Questions-Answers](https://github.com/amine0110/Medical-Imaging-Interview-Questions-Answers) → `prisma/interviewQuestionsEn.ts` (36 items; skipped Q6/Q15/Q17/Q32).
 
 MRI-heavy filter used for `student2` seed and CT-track preset (regex-ish on title/tags/prompt): MRI, MRT, FLAIR, Nyúl, bias field, 2.5D, etc. — see `isMriHeavy()` in `src/lib/assignmentPresets.ts` (imported by seed).
@@ -107,6 +107,14 @@ MRI-heavy filter used for `student2` seed and CT-track preset (regex-ish on titl
 ---
 
 ## Session log
+
+### 2026-10-12 — Clinical Foundation Models and Agentic Systems
+- `prisma/clinicalAiQuestionsEn.ts`: two topics, 12 questions each (four Easy, four Medium, four Hard), eight MC and sixteen free-text cases total; trainer-only worked answers and explanations.
+- Original fictional clinical scenarios address notes, imaging, hospital protocols, EHR data, privacy, scheduling, referrals, and supervised discharge workflows. Primary technical/clinical references are attached to relevant explanations.
+- New topics are included by `prisma/seed.ts`; difficulty uses existing round labels and searchable tags, with no schema change.
+- `npm run db:add:clinical-ai` runs `scripts/add-clinical-ai.ts` to append missing content atomically, matching category + curriculum label and preserving trainer edits and existing users/submissions/assignments. Retain labels for idempotent imports.
+- Additive import assigns eligible questions only to existing bundled `student` / `student2` demo accounts; other students are assigned through the trainer UI.
+- Verified TypeScript, targeted lint, authoring validation, preserved records/trainer edits, repeat imports, and transaction rollback on a temporary DB. Fresh-seed check yields 143 questions; local bank has 144 including a pre-existing custom item. Loaded both new topics locally and added 48 demo assignments.
 
 ### 2026-09-03 — MATLAB coding language
 - Same fill-in-the-blank IDE as Python/JS; `CodingLanguage.MATLAB` + `script.m`.

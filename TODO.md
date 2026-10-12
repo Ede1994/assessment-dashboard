@@ -2,13 +2,13 @@
 
 Living checklist for agents. Mark items `[x]` when done, add new open work under **Open**, and move finished work to **Done** with a short note.
 
-Last updated: 2026-09-03
+Last updated: 2026-10-12
 
 ---
 
-## Progress snapshot (2026-09-03)
+## Progress snapshot (2026-10-12)
 
-Solid prototype: auth, CRUD, assignments, media, bank import/export, grading, AI assist, time-spent tracking, light theme, keyboard nav, Docker, CI, coding exercises (Python / JavaScript / MATLAB fill-in-the-blank IDE), ~119 questions. Remaining: **near-duplicate content review** and optional extra tutor HTML imports.
+Solid prototype: auth, CRUD, assignments, media, bank import/export, grading, AI assist, time-spent tracking, light theme, keyboard nav, Docker, CI, coding exercises (Python / JavaScript / MATLAB fill-in-the-blank IDE), ~143 questions including clinical Foundation Models and Agentic Systems topics. Remaining: **near-duplicate content review** and optional extra tutor HTML imports.
 
 ---
 
@@ -35,6 +35,11 @@ Solid prototype: auth, CRUD, assignments, media, bank import/export, grading, AI
 ---
 
 ## Done
+
+### Clinical AI curriculum (2026-10-12)
+- [x] Foundation Models and Agentic Systems: 12 questions each, four per Easy / Medium / Hard level
+- [x] Clinical cases with MC choices, worked solutions, explanations, and primary concept references
+- [x] Fresh-seed integration and additive `db:add:clinical-ai` import preserving existing data
 
 ### MATLAB coding language (2026-09-03)
 - [x] `CodingLanguage.MATLAB` + fill-in-the-blank IDE (`script.m`); Run via RunMat WASM (unpkg)
