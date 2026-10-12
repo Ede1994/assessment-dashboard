@@ -312,11 +312,23 @@ docker run --rm -p 3000:3000 \
   assessment-dashboard
 ```
 
-The image ships a seeded SQLite DB. Compose mounts `./data/dev.db` and `./data/uploads` by default so answers and trainer media survive container recreate (create the host files/dirs first if needed).
+The image ships a seeded SQLite DB. Compose mounts `./data/dev.db` and `./data/uploads` by default so answers and trainer media survive container recreate.
+
+**Important — first-run DB initialization:** an *empty* mounted `dev.db` (created via `touch`) is **not** auto-initialized and crashes the app (`SQLITE_READONLY`/missing tables). Extract the seeded DB from the built image *before* the first start:
 
 ```bash
 mkdir -p data/uploads
-touch data/dev.db   # optional; container may create the DB on first run via seed
+docker create --name dbextract assessment-dashboard:local
+docker cp dbextract:/app/prisma/dev.db ./data/dev.db
+docker rm dbextract
+docker compose up -d
+```
+
+The app inside the container runs as UID 1001 (`nextjs`) — make the mounted files writable for it (`chown -R 1001:1001 data/`) or SQLite writes fail with `attempt to write a readonly database`.
+
+```bash
+mkdir -p data/uploads
+# do NOT just touch data/dev.db — see first-run DB initialization above
 docker compose up --build
 ```
 
@@ -427,3 +439,27 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3000 || echo "Server n
 
 You want: port 3000 free, and `curl` failing to connect (or connection refused).
 
+---
+
+## Production runbook — CT 104 (live deployment, 2026-10-12)
+
+Live: https://assessment.entropy-manager.de (Cloudflare Tunnel, cloudflared on the CT host, ingress → `http://192.168.178.36:3000`) and LAN http://192.168.178.36:3000.
+
+- **Host:** unprivileged Proxmox LXC "assessment" (CT 104), Ubuntu 24.04, 2 vCPU / 4 GB RAM / 20 GB, Docker 29.1.3 + Compose v2.
+- **Deploy dir:** `/opt/assessment-dashboard`. Persistent state: `data/dev.db` (SQLite, WAL mode) + `data/uploads/`.
+- **Secrets:** `SESSION_SECRET` and `AI_API_KEY` live in `/opt/assessment-dashboard/.env` (chmod 600; not committed). `SESSION_COOKIE_SECURE=true`.
+- **Log rotation:** `/etc/docker/daemon.json` (json-file, 10 MB × 3).
+- **Updates (content/code):**
+  ```bash
+  cd /opt/assessment-dashboard
+  git pull
+  docker compose up -d --build
+  ```
+  Build takes ~5 min. `data/` is bind-mounted — rebuilds never touch DB/uploads. Never run `npm run db:reset` on the server (it reseeds passwords/questions).
+- **Schema changes / content imports:** runtime image has no Prisma CLI — run `npx prisma db push` or `npm run db:add:clinical-ai` from a source checkout with `DATABASE_URL=file:/opt/assessment-dashboard/data/dev.db`, **after** taking a DB backup.
+- **Backups:**
+  - SQLite online backup + uploads tar: `/opt/assessment-dashboard/scripts/backup-db.sh`, daily 03:15 via `/etc/cron.d/assessment-backup`, 7 generations in `data/backups/`.
+  - Full CT: Proxmox vzdump job `backup-ct104`, daily 04:15 → local storage, zstd, keep-daily=1/weekly=1/monthly=1.
+  - Keep at least one backup copy off the CT.
+- **Credentials:** rotated 2026-10-12; current logins on the server only (`/root/assessment-credentials.txt` on the CT, chmod 600). Login page has no demo-credential shortcuts (verified 2026-10-12).
+- **Known limits:** `/public/uploads/*` is served without per-file authorization (uploads stay public-by-URL); rate limiting counts tunnel IPs, not real clients.

@@ -36,6 +36,7 @@ ENV DATABASE_URL="file:./prisma/dev.db" \
 
 RUN npx prisma generate \
   && npm run check:native \
+  && npm run copy:webfonts \
   && npx prisma db push \
   && npm run db:seed \
   && npm run build \

@@ -56,3 +56,5 @@ prisma/test.db-journal
 # trainer media uploads (keep directory via .gitkeep)
 /public/uploads/*
 !/public/uploads/.gitkeep
+docker-compose.override.yml
+data/

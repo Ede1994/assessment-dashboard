@@ -2,79 +2,72 @@
 
 Living checklist for agents. Mark items `[x]` when done, add new open work under **Open**, and move finished work to **Done** with a short note.
 
-Last updated: 2026-10-12
+Last updated: 2026-10-12 (production hardening pass completed; live on CT 104)
 
 ---
 
 ## Progress snapshot (2026-10-12)
 
-Solid prototype: auth, CRUD, assignments, media, bank import/export, grading, AI assist, time-spent tracking, light theme, keyboard nav, Docker, CI, coding exercises (Python / JavaScript / MATLAB fill-in-the-blank IDE), ~143 questions including clinical Foundation Models and Agentic Systems topics. Next priority: **persistent server deployment behind a Cloudflare Tunnel**. Content follow-up: **near-duplicate review** and optional extra tutor HTML imports.
+Solid prototype: auth, CRUD, assignments, media, bank import/export, grading, AI assist, time-spent tracking, light theme, keyboard nav, Docker, CI, coding exercises (Python / JavaScript / MATLAB fill-in-the-blank IDE), ~143 questions including clinical Foundation Models and Agentic Systems topics.
+
+**Deployed & hardened (2026-10-12):** live at https://assessment.entropy-manager.de (Cloudflare Tunnel) and LAN http://192.168.178.36:3000. Secrets moved to `.env`, credentials rotated, WAL mode, backups (cron + vzdump), log rotation, webfonts fixed, README runbook added. Remaining: media authorization, client-IP-aware rate limiting, Cloudflare Access (optional), SMTP (optional).
 
 ---
 
 ## Open
 
-### Server deployment — container preparation (next priority)
-
-Target: **CT 104 — `assessment`**, an unprivileged Proxmox LXC running Ubuntu 24.04 LTS. User-reported allocation: 2 vCores, 4 GB RAM + 512 MB swap, 20 GB root disk on `local-lvm`; `vmbr0` with DHCP, currently `192.168.178.36`; `nesting=1`, `keyctl=1`, CT autostart enabled. Docker Engine 29.1.3, Compose plugin 2.40.3, Git, and curl are installed. These details are reported by the user; the remote runtime has not yet been verified.
-
-Recommended route: browser HTTPS → Cloudflare → `cloudflared` in CT 104 → `http://app:3000` on a shared Docker network. Use one app instance and SQLite, with persistent app data on the CT filesystem. The public hostname is still to be chosen, e.g. `assessment.example.com`.
-
-- [x] Provision CT 104 and install Docker/Compose, Git, and curl (user confirmed).
-- [ ] Verify Docker execution inside the unprivileged LXC (`docker run --rm hello-world`), Docker starts at boot, CPU architecture (`uname -m`), and available memory/disk. Investigate actual runtime errors before changing LXC isolation settings.
-- [ ] Confirm the domain is on Cloudflare and choose the public hostname; reserve `192.168.178.36` in DHCP if it will be used for administration or a connector outside this CT. A same-network containerized tunnel uses the service name and does not depend on a fixed LAN IP.
-- [ ] Choose a deployment directory inside CT 104 (e.g. `/opt/assessment-dashboard`); keep persistent data there or in named Docker volumes. Validate runtime-user writes from Docker; set ownership inside the LXC rather than assuming identical UIDs on the Proxmox host. Check any additional Docker user-namespace mapping if enabled.
-- [ ] Add a production Compose configuration with `app` and `cloudflared` on the same network, restart policies, and no publicly published app port. If the connector runs directly on the host instead, bind the app to `127.0.0.1:3000:3000` and route to `http://127.0.0.1:3000`.
-- [ ] Replace hardcoded production session secrets with required runtime configuration; generate a unique secret (at least 32 characters, e.g. `openssl rand -base64 48`), keep it stable across restarts, and keep `SESSION_COOKIE_SECURE=true` for public HTTPS. Compose must actually inject the variables; an env file alone does not override the current hardcoded `environment` values.
-- [ ] Store the Cloudflare tunnel token as a separate deployment secret available only to `cloudflared`; pin a reviewed connector image version and document token rotation.
-- [ ] Fix first-run database initialization: the current `./data/dev.db` bind mount hides the image's seeded database, and `touch data/dev.db` does not create tables. Initialize or restore a real DB before mounting it, or add initialization that runs only when storage is empty; never reseed on every startup.
-- [ ] Persist the SQLite database directory (including journal/WAL sidecars) and uploads separately; ensure both are writable by the runtime UID/GID `1001:1001`. Test persistence across container replacement and host reboot.
-- [ ] Provide a maintenance image/job with the Prisma/TypeScript tooling and source files needed for schema updates and `db:add:clinical-ai`; the current runtime prunes `tsx`/Prisma CLI and omits `scripts/` and the imported `src/lib` files. Back up before schema changes; content-only updates must preserve submissions and edited questions.
-- [ ] Exclude `.env*` (except `.env.example`), deployment secrets, `data/`, uploaded media, and SQLite sidecars from Docker build context; the current `.dockerignore` excludes only `.env`, not `.env.production` or other secret env files. Ignore server data/secrets in Git as well.
-- [ ] Run the webfont copy step during clean Docker builds; `npm ci --ignore-scripts` skips the postinstall copy, and a fresh Git checkout has no generated `public/webfonts`.
-- [ ] Prepare a production bootstrap/account procedure: replace seeded trainer/student passwords before exposing the hostname, hide demo login shortcuts for public use, and decide whether public self-registration should be enabled or gated.
-
-### Server deployment — tunnel and first launch
-
-- [ ] Create a persistent, remotely managed Cloudflare Tunnel, start the connector on the server, and map the chosen public hostname to the appropriate internal app address. A containerized connector must use `app:3000` on the shared network, not its own `localhost`.
-- [ ] Allow outbound tunnel traffic on port `7844` (UDP/QUIC or TCP/HTTP2) and required DNS/build/download traffic; keep inbound app ports closed. Enable public HTTPS and avoid rules that cache authenticated pages or API responses.
-- [ ] Decide whether the site is open to app-authenticated users or additionally restricted by Cloudflare Access; for a restricted class/team, configure an explicit Access allow policy before sharing the URL.
-- [ ] Add an app readiness/health check and check connector status/logs. Verify real client-IP forwarding and auth rate limiting through the trusted tunnel, HTTPS redirects, secure session cookies, and absence of direct public origin access.
-- [ ] Verify trainer/student login, registration policy, assignments, answer submission, solutions restricted to trainers, and media upload/playback through the public hostname. Check that files uploaded after container startup remain available after a restart.
-- [ ] Decide whether uploaded media may be publicly accessible: `/public/uploads` currently serves files without app-level authorization. If private media is required, move it outside `public` and serve it through an authenticated route before launch.
-- [ ] Configure optional SMTP and Open WebUI through explicit container environment values and reachable service addresses. Container `127.0.0.1` refers to that container; use a service name or a configured host/LAN address for other services. Browser coding runtimes also need access to their public CDNs.
-
-### Server deployment — operations
-
-- [ ] Schedule consistent SQLite backups (online backup API / `sqlite3 .backup`, or stop the app before copying) plus upload backups; keep an off-server copy and verify a restore.
-- [ ] Document the release procedure: backup → build/pull a versioned image → run required maintenance → recreate app → check the public hostname; document rollback including DB compatibility. Image rebuilds must not replace the persistent DB or run a destructive seed.
-- [ ] Add disk-space/log monitoring and test recovery after server/container/tunnel restart; define how app and connector updates are applied.
-- [ ] Account for CT 104's 20 GB disk: measure the first build's disk/RAM use, configure Docker log rotation, retain only needed release/build artifacts, and monitor free space for SQLite/uploads. Keep backup copies off the CT; inspect `docker system df` before any cleanup and preserve data volumes.
-- [ ] Update README with a tested deployment runbook, production env example, first-run initialization, backup/restore, and maintenance commands. Correct the existing Docker section's suggestion that an empty mounted DB is initialized automatically.
-
-References: [Cloudflare Tunnel setup](https://developers.cloudflare.com/tunnel/get-started/), [tunnel firewall requirements](https://developers.cloudflare.com/tunnel/configuration/), [Docker Compose networking](https://docs.docker.com/compose/how-tos/networking/), and [bind-mount behavior](https://docs.docker.com/engine/storage/bind-mounts/).
-
-### Product / features
-- [ ] (coding exercises shipped)
-
-### Student UX / QoL
-- [ ] (MC keys + autosize textarea + Ctrl/⌘+Enter shipped)
-
-### Trainer UX / QoL
-- [ ] (bank list/bulk/preview/import-export shipped)
-
-### UI polish / accessibility
-- [ ] (keyboard `/` `j`/`k`, focus traps, reduced-motion, sticky filters, light theme shipped)
-
-### Engineering / polish
-- [ ] (API tests expanded: templates, CSV, time spent, clone, grade, categories, users, import, media)
+### Production hardening — remaining items
+- [ ] Media privacy: `/public/uploads/*` is served without app-level authorization (files are unguessable names, but URLs shared in questions leak by design). If assessments must stay private, move media outside `public` and serve via an authenticated route.
+- [ ] Rate limiting counts the tunnel/edge IP, not the real client — wire real client IP (trusted `X-Forwarded-For` from cloudflared) into the rate limiter, or enable Cloudflare Access in front of the app for restricted teams.
+- [ ] Optional: Cloudflare Access policy for restricted classes/teams before sharing the URL widely.
+- [ ] Optional: SMTP values for student progress emails still unset — configure when needed.
+- [ ] Reserve 192.168.178.36 in the DHCP server (FritzBox); the Cloudflare ingress and trainer LAN access depend on this address.
 
 ### Content
 - [ ] Review remaining near-duplicates between template bank and tutor bank
 
 ---
 
+## Deployment notes (CT 104 — Hermes, 2026-10-12)
+
+Facts and gotchas from the actual install; verified, not user-reported:
+
+- **Runtime:** unprivileged LXC CT 104 `assessment`, Ubuntu 24.04 LTS, 2 vCores / 4 GB RAM + 512 MB swap / 20 GB disk, nesting+keyctl, Docker 29.1.3, Compose v2 2.40.3, IP 192.168.178.36 (DHCP). Docker-in-LXC verified working.
+- **Install path:** repo at `/opt/assessment-dashboard`; `docker compose up -d --build` succeeds (~5 min).
+- **Gotcha — bind-mount DB initialization (predicted in the earlier revision, confirmed):** first `up` crashed: `./data/dev.db` did not exist, Docker created a *directory* at that path, mount failed (`not a directory`). Fix: extract the seeded DB from the built image before first start (`docker create` → `docker cp <c>:/app/prisma/dev.db ./data/dev.db` → `docker rm` → `up -d`). A plain `touch data/dev.db` yields an empty DB without tables.
+- **Gotcha — SQLite readonly (found live):** the app runs as UID 1001 (`nextjs`) inside the container; root-owned `data/dev.db` made every write fail with `attempt to write a readonly database` (surfaced in the UI as "Network error" on trainer actions). Fix: `chown -R 1001:1001 data/`. **Always chown mounted data after extracting/copying files as root.**
+- **Compose layout (updated):** tracked `docker-compose.yml` is now generic (`${SESSION_SECRET:-...}`, `${AI_*:-}` with safe defaults, no server secrets); server-specific settings (SESSION_COOKIE_SECURE=true, backups volume) live in untracked `docker-compose.override.yml`; secrets in untracked `.env` (chmod 600). `.gitignore` covers `docker-compose.override.yml`; `.dockerignore` excludes `.env*` (keeps `.env.example`) and `data/`.
+- **SESSION_COOKIE_SECURE=true** set via override (public HTTPS via Cloudflare; iron-session defaults secure=true in production anyway — now explicit).
+- **Webfonts fixed in Dockerfile:** builder stage now runs `npm run copy:webfonts` (the deps stage `npm ci --ignore-scripts` skips the postinstall copy) — verified `fa-solid-900.woff2` etc. present in the runtime image.
+- **AI assist (Open WebUI):** `AI_BASE_URL=https://ki-plattform.diz-ag.med.ovgu.de`, `AI_MODEL=gemma4:31b-it`, key via `.env`.
+- **Tunnel topology (deviation from containerized-connector recommendation, intentional):** `cloudflared` runs as a systemd service on the CT host (installed by Eric), ingress `assessment.entropy-manager.de` → `http://192.168.178.36:3000`. App port stays published on the LAN for trainer use.
+- **Not done (by design):** containerized tunnel connector on the compose network (host-level service chosen), public key pinning of connector image.
+
+---
+
 ## Done
+
+### Production hardening (2026-10-12, Hermes on CT 104)
+- [x] Replace seeded credentials before exposing the hostname — `trainer`, `student`, `student2` rotated with random 14-char secrets (bcrypt cost 12, same as `src/lib/password.ts`); hashes written directly to the live DB; plaintext only in `/root/assessment-credentials.txt` (chmod 600, on the CT). Verified trainer login via API (200 + trainer session works). User account `Osamah` untouched.
+- [x] Hide demo login shortcuts on `/login` — verified: no demo-credential block exists on the login page (README wording corrected accordingly).
+- [x] Move `SESSION_SECRET` out of `docker-compose.yml` into `.env` (chmod 600); compose reads `${SESSION_SECRET}` with a safe dev fallback; per-install value regenerated.
+- [x] `SESSION_COOKIE_SECURE=true` explicit via `docker-compose.override.yml`.
+- [x] SQLite WAL mode enabled (better concurrency for parallel student sessions).
+- [x] SQLite backups: `scripts/backup-db.sh` (online `.backup` + uploads tar, 7 generations) + `/etc/cron.d/assessment-backup` daily 03:15; first run verified (`dev-20261012-1442.db`).
+- [x] Proxmox vzdump backup job `backup-ct104` (daily 04:15, local, zstd, keep-daily=1/weekly=1/monthly=1) + first manual backup verified.
+- [x] Docker log rotation via `/etc/docker/daemon.json` (json-file, 10 MB × 3).
+- [x] Webfont copy step runs in Docker builds (`npm run copy:webfonts` in builder stage) — verified in image.
+- [x] `.dockerignore` excludes `.env*` (except `.env.example`) and `data/`; secrets and DB can no longer leak into build context/images.
+- [x] README: corrected false auto-init claim + documented the extraction fix, UID-1001 chown requirement, and a full production runbook (live deployment, updates, schema changes, backups, credentials).
+- [x] End-to-end verification: public HTTPS 200, LAN 200, trainer login API 200, `/api/users` 200 with session.
+
+### Server deployment live (2026-10-12, Hermes on CT 104)
+- [x] Docker execution inside the unprivileged LXC verified (app container running; no isolation changes needed).
+- [x] Domain on Cloudflare, public hostname `assessment.entropy-manager.de` mapped to `http://192.168.178.36:3000` via cloudflared on the CT host; HTTPS live.
+- [x] Deployment dir `/opt/assessment-dashboard` with persistent `data/dev.db` + `data/uploads/` on the CT filesystem.
+- [x] First-run DB initialization fixed: seeded DB extracted from the built image into the bind-mount target before first start (persistence across recreations, no reseed).
+- [x] Unique per-install SESSION_SECRET generated and injected via compose.
+- [x] Open WebUI AI assist configured (base URL, model, API key via `.env`).
 
 ### Clinical AI curriculum (2026-10-12)
 - [x] Foundation Models and Agentic Systems: 12 questions each, four per Easy / Medium / Hard level
@@ -123,7 +116,7 @@ References: [Cloudflare Tunnel setup](https://developers.cloudflare.com/tunnel/g
 ### Student progress + trainer grading + QoL (2026-08-05)
 - [x] Student dashboard: progress overview (% / unanswered / MC / free-text), status filters, sort, resume CTA, empty states
 - [x] Next / previous on answer page + local draft autosave for free-text
-- [x] Header: display name + progress chip + student “My tasks” nav
+- [x] Header: display name + progress chip + student "My tasks" nav
 - [x] Trainer free-text grade (score / pass-fail / comment) + release feedback (`PATCH /api/submissions/[id]/grade`)
 - [x] Clone question (`POST /api/questions/[id]/clone`)
 - [x] Fix overview bank count via `bank.totalQuestions`; scoreboard → `/trainer/submissions?student=`

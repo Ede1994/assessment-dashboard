@@ -12,3 +12,6 @@ agent-transcripts
 skills-lock.json
 coverage
 tests
+.env.*
+data/
+!/.env.example
